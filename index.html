@@ -1,705 +1,130 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Festival Voting</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        /* Stile ispirato al file fornito, adattato per un tema scuro */
-        :root {
-            --bg-color: #121212;
-            --surface-color: #1e1e1e;
-            --primary-color: #ffc107; /* Giallo acceso */
-            --primary-text-color: #000;
-            --text-color: #ffffff;
-            --secondary-text-color: #b3b3b3;
-            --border-color: #2c2c2c;
-            --danger-color: #e53935;
-            --success-color: #43a047;
-        }
+-- 1. TABELLE
+-- Tabella per i codici admin (semplificata)
+CREATE TABLE public.admins (
+  code text PRIMARY KEY NOT NULL
+);
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            margin: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 1rem 0;
-        }
+-- Tabella delle serate
+CREATE TABLE public.nights (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name text NOT NULL,
+  created_at timestamptz DEFAULT now() NOT NULL,
+  is_open boolean DEFAULT false NOT NULL
+);
 
-        .app-container {
-            width: 100%;
-            max-width: 500px;
-            background-color: var(--surface-color);
-            border-radius: 12px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-        }
+-- Tabella dei partecipanti (artisti)
+CREATE TABLE public.participants (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  full_name text UNIQUE NOT NULL
+);
 
-        header {
-            background-color: #000;
-            padding: 1rem;
-            text-align: center;
-            border-bottom: 1px solid var(--border-color);
-        }
+-- Tabella dei voti (lega utente e serata)
+CREATE TABLE public.votes (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  night_id uuid REFERENCES public.nights(id) ON DELETE CASCADE NOT NULL,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  created_at timestamptz DEFAULT now() NOT NULL,
+  UNIQUE (night_id, user_id) -- Vincolo chiave: un utente vota una volta per serata
+);
 
-        #festival-logo {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: var(--primary-color);
-            margin: 0;
-        }
-        
-        main { padding: 1.5rem; }
-        .screen { display: none; }
-        .screen.active { display: block; animation: fadeIn 0.5s ease-in-out; }
+-- Tabella delle scelte di voto (lega voto e artista)
+CREATE TABLE public.vote_choices (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  vote_id uuid REFERENCES public.votes(id) ON DELETE CASCADE NOT NULL,
+  participant_id uuid REFERENCES public.participants(id) ON DELETE CASCADE NOT NULL,
+  rank int NOT NULL CHECK (rank >= 1 AND rank <= 3), -- Non usato per punteggio, ma per struttura
+  UNIQUE (vote_id, participant_id), -- Vincolo: non puoi votare lo stesso artista due volte nello stesso voto
+  UNIQUE (vote_id, rank) -- Vincolo: ogni preferenza (1, 2, 3) è unica
+);
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+-- 2. ABILITAZIONE ROW LEVEL SECURITY (RLS)
+ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.nights ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.votes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vote_choices ENABLE ROW LEVEL SECURITY;
 
-        h2, h3 {
-            margin-top: 0;
-            text-align: center;
-            color: var(--text-color);
-        }
+-- 3. POLITICHE RLS (Regole di accesso)
+-- Admin: possono fare tutto (assumendo che un giorno si usi un ruolo admin)
+-- Per ora, le modifiche admin si basano sulla validità del codice, non su un ruolo utente.
+-- L'accesso è garantito a livello di codice applicativo.
+-- Rendiamo le letture pubbliche dove serve e le scritture protette.
 
-        p {
-            text-align: center;
-            color: var(--secondary-text-color);
-            line-height: 1.6;
-        }
+-- Chiunque può leggere serate e partecipanti
+CREATE POLICY "Allow public read access to nights" ON public.nights FOR SELECT USING (true);
+CREATE POLICY "Allow public read access to participants" ON public.participants FOR SELECT USING (true);
 
-        .form-group { margin-bottom: 1.5rem; }
-        label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-            color: var(--secondary-text-color);
-        }
+-- Gli utenti autenticati possono inserire il proprio voto
+CREATE POLICY "Allow authenticated users to insert their own vote" ON public.votes FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-        input[type="email"], input[type="text"], input[type="password"] {
-            width: 100%;
-            padding: 0.85rem;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            box-sizing: border-box;
-            background-color: #2c2c2c;
-            color: var(--text-color);
-            font-size: 1rem;
-        }
-        input[type="email"]:focus, input[type="text"]:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.2);
-        }
+-- Gli utenti possono leggere solo i propri voti
+CREATE POLICY "Allow users to read their own votes" ON public.votes FOR SELECT USING (auth.uid() = user_id);
 
-        .btn {
-            display: block;
-            width: 100%;
-            padding: 0.85rem;
-            border: none;
-            border-radius: 6px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            text-align: center;
-            text-decoration: none;
-            margin-top: 0.5rem;
-            transition: background-color 0.2s, transform 0.1s;
-        }
-        .btn:active { transform: scale(0.98); }
+-- Gli utenti possono inserire le proprie scelte di voto
+CREATE POLICY "Allow users to insert their own vote choices" ON public.vote_choices FOR INSERT WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.votes
+    WHERE votes.id = vote_choices.vote_id AND votes.user_id = auth.uid()
+  )
+);
 
-        .btn-primary { background-color: var(--primary-color); color: var(--primary-text-color); }
-        .btn-primary:disabled { background-color: #555; color: #888; cursor: not-allowed; }
-        .btn-secondary { background-color: #333; color: var(--text-color); border: 1px solid var(--border-color); }
-        .btn-danger { background-color: var(--danger-color); color: white; }
-        .btn-sm { padding: 0.5rem 1rem; font-size: 0.875rem; }
-
-        #loading-spinner {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 2000;
-            background-color: rgba(0, 0, 0, 0.8);
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            font-weight: bold;
-            color: var(--primary-color);
-        }
-        
-        .participant-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 0.75rem;
-        }
-
-        .participant-item {
-            padding: 1rem;
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            text-align: center;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.2s, border-color 0.2s;
-            user-select: none;
-        }
-        .participant-item.selected {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-            color: var(--primary-text-color);
-            font-weight: bold;
-        }
-
-        .admin-section {
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        .admin-section h3 { text-align: left; font-size: 1.2rem; }
-
-        .admin-list-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem;
-            background-color: #2a2a2a;
-            border-radius: 4px;
-            margin-bottom: 0.5rem;
-        }
-
-        .admin-actions { display: flex; gap: 0.5rem; }
-
-        .footer-link {
-            text-align: center;
-            margin-top: 2rem;
-            font-size: 0.8rem;
-        }
-        .footer-link a {
-            color: var(--secondary-text-color);
-            cursor: pointer;
-            text-decoration: underline;
-        }
-    </style>
-</head>
-<body>
-    <div id="loading-spinner">Caricamento...</div>
-
-    <div class="app-container">
-        <header>
-            <h1 id="festival-logo">FESTIVAL</h1>
-        </header>
-
-        <main>
-            <div id="auth-screen" class="screen">
-                <h2>Accedi per Votare</h2>
-                <p>Inserisci la tua email per ricevere un codice di accesso. Potrai votare una sola volta per serata.</p>
-                <div id="email-form">
-                    <div class="form-group">
-                        <label for="user-email">La tua Email</label>
-                        <input type="email" id="user-email" placeholder="nome@esempio.com">
-                    </div>
-                    <button id="send-otp-btn" class="btn btn-primary">Ricevi Codice</button>
-                </div>
-                <div id="otp-form" style="display: none;">
-                    <p>Abbiamo inviato un codice a <strong id="otp-email-display"></strong>. Inseriscilo qui sotto.</p>
-                    <div class="form-group">
-                        <label for="user-otp">Codice di Accesso</label>
-                        <input type="text" id="user-otp" placeholder="123456" inputmode="numeric" autocomplete="one-time-code">
-                    </div>
-                    <button id="verify-otp-btn" class="btn btn-primary">Verifica e Accedi</button>
-                    <button id="change-email-btn" class="btn btn-secondary btn-sm" style="margin-top: 1rem;">Cambia Email</button>
-                </div>
-            </div>
-
-            <div id="voting-screen" class="screen">
-                <h2 id="voting-night-name"></h2>
-                <p>Seleziona i tuoi 3 artisti preferiti per questa serata. La tua scelta è definitiva.</p>
-                <div id="participant-grid" class="participant-grid"></div>
-                <p id="selection-counter" style="font-weight: bold; margin-top: 1.5rem; color: var(--primary-color); height: 20px;"></p>
-                <button id="submit-vote-btn" class="btn btn-primary" style="margin-top: 0.5rem;" disabled>Invia il Tuo Voto</button>
-            </div>
-
-            <div id="voted-screen" class="screen">
-                <h2>Grazie!</h2>
-                <p>Il tuo voto per la serata è stato registrato con successo. Torna domani per la prossima serata!</p>
-                <button id="logout-btn-voted" class="btn btn-secondary">Esci</button>
-            </div>
-
-            <div id="closed-screen" class="screen">
-                <h2>Votazioni Chiuse</h2>
-                <p>Al momento non ci sono votazioni aperte. Riprova più tardi o durante la prossima serata del festival.</p>
-                 <button id="logout-btn-closed" class="btn btn-secondary">Esci</button>
-            </div>
-
-            <div id="admin-screen" class="screen">
-                <h2>Pannello Admin</h2>
-                <div class="admin-section">
-                    <h3>Gestione Serate</h3>
-                    <div id="nights-list"></div>
-                    <div class="form-group" style="margin-top: 1rem;">
-                        <input type="text" id="new-night-name" placeholder="Nome nuova serata (es. Serata 1)">
-                    </div>
-                    <button id="add-night-btn" class="btn btn-secondary btn-sm">Aggiungi Serata</button>
-                </div>
-                <div class="admin-section">
-                    <h3>Gestione Artisti</h3>
-                    <div id="participants-list"></div>
-                    <div class="form-group" style="margin-top: 1rem;">
-                        <input type="text" id="new-participant-name" placeholder="Nome nuovo artista">
-                    </div>
-                    <button id="add-participant-btn" class="btn btn-secondary btn-sm">Aggiungi Artista</button>
-                </div>
-                <div class="admin-section">
-                    <h3>Risultati in Tempo Reale</h3>
-                    <div id="results-list"></div>
-                </div>
-                <button id="logout-btn-admin" class="btn btn-danger">Esci</button>
-            </div>
-             <div class="footer-link">
-                <a id="admin-login-link">Accesso Admin</a>
-            </div>
-        </main>
-    </div>
-
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const SUPABASE_URL = 'https://piizdbesekycwotshcmk.supabase.co';
-        const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaXpkYmVzZWt5Y3dvdHNoY21rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4NjAwOTYsImV4cCI6MjA3MTQzNjA5Nn0.tPYSxgxE37VkzpMIbFzEHRc80CFspS_Wb0umUboWl-4';
-        const supabase = window.supabase.createClient(SUPABASE_URL, ANON_KEY);
-
-        // Stato globale dell'applicazione
-        const state = {
-            user: null,
-            isAdmin: false,
-            activeNight: null,
-            participants: [],
-            selectedParticipants: new Set(),
-            emailForOtp: '',
-        };
-
-        // Riferimenti agli elementi del DOM
-        const screens = {
-            auth: document.getElementById('auth-screen'),
-            voting: document.getElementById('voting-screen'),
-            voted: document.getElementById('voted-screen'),
-            closed: document.getElementById('closed-screen'),
-            admin: document.getElementById('admin-screen'),
-        };
-        const loadingSpinner = document.getElementById('loading-spinner');
-
-        // --- FUNZIONI DI UTILITÀ ---
-        const showLoading = (show) => {
-            loadingSpinner.style.display = show ? 'block' : 'none';
-        };
-
-        const navigateTo = (screenId) => {
-            Object.values(screens).forEach(s => s.classList.remove('active'));
-            if (screens[screenId]) {
-                screens[screenId].classList.add('active');
-            }
-        };
-
-        // --- LOGICA DI AUTENTICAZIONE ---
-
-        // Invia il codice OTP all'email dell'utente
-        const handleSendOtp = async () => {
-            const email = document.getElementById('user-email').value.trim();
-            if (!email) {
-                alert('Per favore, inserisci un indirizzo email valido.');
-                return;
-            }
-            showLoading(true);
-            const { error } = await supabase.auth.signInWithOtp({ email });
-            showLoading(false);
-            if (error) {
-                console.error('Errore invio OTP:', error);
-                alert(`Impossibile inviare il codice: ${error.message}`);
-            } else {
-                state.emailForOtp = email;
-                document.getElementById('otp-email-display').textContent = email;
-                document.getElementById('email-form').style.display = 'none';
-                document.getElementById('otp-form').style.display = 'block';
-            }
-        };
-
-        // Verifica il codice OTP inserito
-        const handleVerifyOtp = async () => {
-            const token = document.getElementById('user-otp').value.trim();
-            if (!token) {
-                alert('Per favore, inserisci il codice che hai ricevuto.');
-                return;
-            }
-            showLoading(true);
-            const { error } = await supabase.auth.verifyOtp({
-                email: state.emailForOtp,
-                token: token,
-                type: 'email',
-            });
-            showLoading(false);
-            if (error) {
-                console.error('Errore verifica OTP:', error);
-                alert(`Codice non valido: ${error.message}`);
-            }
-            // Se la verifica ha successo, onAuthStateChange si attiverà e gestirà la navigazione.
-        };
-
-        const handleLogout = async () => {
-            showLoading(true);
-            await supabase.auth.signOut();
-            state.user = null;
-            state.isAdmin = false;
-            // Resetta i campi dei form
-            document.getElementById('user-email').value = '';
-            document.getElementById('user-otp').value = '';
-            document.getElementById('email-form').style.display = 'block';
-            document.getElementById('otp-form').style.display = 'none';
-            showLoading(false);
-            navigateTo('auth');
-        };
-
-        const handleAdminLogin = async () => {
-            const code = prompt('Inserisci il codice di accesso admin:');
-            if (!code) return;
-            showLoading(true);
-            const { data, error } = await supabase.from('admins').select('code').eq('code', code).single();
-            if (error || !data) {
-                showLoading(false);
-                alert('Codice admin non valido.');
-                return;
-            }
-            state.isAdmin = true;
-            await initializeAdminView();
-        };
-
-        // --- LOGICA PRINCIPALE (PER UTENTI VOTANTI) ---
-        const initializeUserView = async () => {
-            showLoading(true);
-            // 1. Cerca una serata di voto aperta
-            const { data: night, error: nightError } = await supabase
-                .from('nights')
-                .select('*')
-                .eq('is_open', true)
-                .single();
-
-            if (nightError || !night) {
-                console.log('Nessuna votazione aperta.');
-                state.activeNight = null;
-                navigateTo('closed');
-                showLoading(false);
-                return;
-            }
-            state.activeNight = night;
-
-            // 2. Controlla se l'utente ha già votato per questa serata
-            const { data: existingVote, error: voteError } = await supabase
-                .from('votes')
-                .select('id')
-                .eq('user_id', state.user.id)
-                .eq('night_id', state.activeNight.id)
-                .single();
-            
-            if (existingVote) {
-                navigateTo('voted');
-                showLoading(false);
-                return;
-            }
-
-            // 3. Se non ha votato, carica i partecipanti
-            const { data: participants, error: participantsError } = await supabase
-                .from('participants')
-                .select('*')
-                .order('full_name');
-            
-            if (participantsError) {
-                alert('Errore nel caricamento degli artisti.');
-                showLoading(false);
-                return;
-            }
-            state.participants = participants;
-            renderVotingScreen();
-            navigateTo('voting');
-            showLoading(false);
-        };
-        
-        const renderVotingScreen = () => {
-            document.getElementById('voting-night-name').textContent = state.activeNight.name;
-            const grid = document.getElementById('participant-grid');
-            grid.innerHTML = '';
-            state.participants.forEach(p => {
-                const item = document.createElement('div');
-                item.className = 'participant-item';
-                item.textContent = p.full_name;
-                item.dataset.id = p.id;
-                grid.appendChild(item);
-            });
-            updateSelectionCounter();
-        };
-        
-        const handleParticipantSelection = (event) => {
-            const target = event.target;
-            if (!target.classList.contains('participant-item')) return;
-            
-            const participantId = target.dataset.id;
-            
-            if (state.selectedParticipants.has(participantId)) {
-                state.selectedParticipants.delete(participantId);
-                target.classList.remove('selected');
-            } else {
-                if (state.selectedParticipants.size < 3) {
-                    state.selectedParticipants.add(participantId);
-                    target.classList.add('selected');
-                }
-            }
-            updateSelectionCounter();
-        };
-
-        const updateSelectionCounter = () => {
-            const count = state.selectedParticipants.size;
-            const counterEl = document.getElementById('selection-counter');
-            const submitBtn = document.getElementById('submit-vote-btn');
-
-            if (count === 3) {
-                counterEl.textContent = 'Hai selezionato 3 artisti. Pronto per votare!';
-                submitBtn.disabled = false;
-            } else {
-                counterEl.textContent = `Selezionati ${count} di 3 artisti.`;
-                submitBtn.disabled = true;
-            }
-        };
-        
-        const handleSubmitVote = async () => {
-            if (state.selectedParticipants.size !== 3) {
-                alert('Devi selezionare esattamente 3 artisti.');
-                return;
-            }
-            if (!confirm('Sei sicuro di voler inviare questo voto? La scelta è definitiva.')) return;
-
-            showLoading(true);
-            
-            // 1. Inserisci il voto nella tabella 'votes'
-            const { data: vote, error: voteError } = await supabase
-                .from('votes')
-                .insert({
-                    user_id: state.user.id,
-                    night_id: state.activeNight.id
-                })
-                .select('id')
-                .single();
-
-            if (voteError) {
-                console.error('Errore inserimento voto:', voteError);
-                alert('Si è verificato un errore durante la registrazione del voto. Potresti aver già votato.');
-                showLoading(false);
-                await initializeUserView(); // Ricarica lo stato
-                return;
-            }
-
-            // 2. Inserisci le scelte nella tabella 'vote_choices'
-            const choices = Array.from(state.selectedParticipants).map(participant_id => ({
-                vote_id: vote.id,
-                participant_id: participant_id,
-            }));
-
-            const { error: choicesError } = await supabase.from('vote_choices').insert(choices);
-
-            if (choicesError) {
-                console.error('Errore inserimento scelte:', choicesError);
-                alert('Si è verificato un errore critico. Contatta l'assistenza.');
-                // Prova a cancellare il voto orfano per consistenza
-                await supabase.from('votes').delete().eq('id', vote.id);
-                showLoading(false);
-                return;
-            }
-
-            // 3. Voto andato a buon fine, naviga alla schermata di ringraziamento
-            navigateTo('voted');
-            showLoading(false);
-        };
+-- Politiche Admin: gli admin possono gestire tutto. Senza service_key, queste policy non si attivano
+-- ma le lasciamo per completezza. La logica admin si basa sull'accesso tramite codice.
+CREATE POLICY "Allow admin full access to admins" ON public.admins USING (true) WITH CHECK (true);
+CREATE POLICY "Allow admin full access to nights" ON public.nights USING (true) WITH CHECK (true);
+CREATE POLICY "Allow admin full access to participants" ON public.participants USING (true) WITH CHECK (true);
+CREATE POLICY "Allow admin read access to votes" ON public.votes FOR SELECT USING (true);
+CREATE POLICY "Allow admin read access to vote choices" ON public.vote_choices FOR SELECT USING (true);
 
 
-        // --- LOGICA ADMIN ---
-        const initializeAdminView = async () => {
-            showLoading(true);
-            await Promise.all([
-                renderAdminNights(),
-                renderAdminParticipants(),
-                renderAdminResults(),
-            ]);
-            navigateTo('admin');
-            showLoading(false);
-        };
+-- 4. FUNZIONI DATABASE (RPC)
 
-        const renderAdminNights = async () => {
-            const { data, error } = await supabase.from('nights').select('*').order('created_at');
-            if (error) { console.error(error); return; }
-            const list = document.getElementById('nights-list');
-            list.innerHTML = data.map(n => `
-                <div class="admin-list-item">
-                    <span>${n.name} - ${n.is_open ? '<strong>APERTA</strong>' : 'CHIUSA'}</span>
-                    <div class="admin-actions">
-                        <button class="btn ${n.is_open ? 'btn-danger' : 'btn-primary'} btn-sm toggle-night-btn" data-id="${n.id}" data-is-open="${n.is_open}">
-                            ${n.is_open ? 'Chiudi' : 'Apri'}
-                        </button>
-                    </div>
-                </div>
-            `).join('');
-        };
-        
-        const renderAdminParticipants = async () => {
-            const { data, error } = await supabase.from('participants').select('*').order('full_name');
-            if (error) { console.error(error); return; }
-            const list = document.getElementById('participants-list');
-            list.innerHTML = data.map(p => `
-                <div class="admin-list-item">
-                    <span>${p.full_name}</span>
-                    <button class="btn btn-danger btn-sm delete-participant-btn" data-id="${p.id}" data-name="${p.full_name}">&times;</button>
-                </div>
-            `).join('');
-        };
-        
-        const renderAdminResults = async () => {
-            const { data, error } = await supabase
-                .from('vote_choices')
-                .select('participants(full_name)');
-            
-            if (error) { console.error(error); return; }
-            
-            const voteCounts = data.reduce((acc, choice) => {
-                const name = choice.participants.full_name;
-                acc[name] = (acc[name] || 0) + 1;
-                return acc;
-            }, {});
+-- Funzione per aprire una serata e chiudere tutte le altre (transazionale)
+CREATE OR REPLACE FUNCTION open_night(night_id_to_open uuid)
+RETURNS void AS $$
+BEGIN
+  -- Chiudi tutte le serate
+  UPDATE public.nights SET is_open = false WHERE is_open = true;
+  -- Apri la serata specificata
+  UPDATE public.nights SET is_open = true WHERE id = night_id_to_open;
+END;
+$$ LANGUAGE plpgsql;
 
-            const sortedResults = Object.entries(voteCounts).sort(([, a], [, b]) => b - a);
+-- Funzione per ottenere il conteggio dei voti
+CREATE OR REPLACE FUNCTION get_vote_counts()
+RETURNS TABLE(night_name text, participant_name text, vote_count bigint) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    n.name AS night_name,
+    p.full_name AS participant_name,
+    COUNT(vc.id) AS vote_count
+  FROM
+    public.vote_choices vc
+    JOIN public.votes v ON vc.vote_id = v.id
+    JOIN public.participants p ON vc.participant_id = p.id
+    JOIN public.nights n ON v.night_id = n.id
+  GROUP BY
+    n.name,
+    p.full_name
+  ORDER BY
+    n.name,
+    vote_count DESC;
+END;
+$$ LANGUAGE plpgsql;
 
-            const list = document.getElementById('results-list');
-            if (sortedResults.length === 0) {
-                list.innerHTML = '<p style="text-align: left;">Nessun voto registrato.</p>';
-                return;
-            }
-            list.innerHTML = sortedResults.map(([name, count]) => `
-                <div class="admin-list-item">
-                    <span>${name}</span>
-                    <strong>${count} voti</strong>
-                </div>
-            `).join('');
-        };
+-- 5. DATI INIZIALI (SEED)
 
-        const handleAddNight = async () => {
-            const name = document.getElementById('new-night-name').value.trim();
-            if (!name) return;
-            showLoading(true);
-            await supabase.from('nights').insert({ name: name });
-            document.getElementById('new-night-name').value = '';
-            await renderAdminNights();
-            showLoading(false);
-        };
-        
-        const handleToggleNight = async (id, currentStatus) => {
-            const newStatus = !currentStatus;
-            if (newStatus && !confirm('Aprire questa serata chiuderà automaticamente ogni altra serata. Continuare?')) return;
-            
-            showLoading(true);
-            if (newStatus) {
-                // Chiudi tutte le altre serate
-                await supabase.from('nights').update({ is_open: false }).eq('is_open', true);
-            }
-            // Apri/Chiudi la serata selezionata
-            await supabase.from('nights').update({ is_open: newStatus }).eq('id', id);
-            await renderAdminNights();
-            showLoading(false);
-        };
+-- Inserisci un codice admin (cambialo con uno a tua scelta!)
+INSERT INTO public.admins (code) VALUES ('FestivalAdmin2025!');
 
-        const handleAddParticipant = async () => {
-            const name = document.getElementById('new-participant-name').value.trim();
-            if (!name) return;
-            showLoading(true);
-            const { error } = await supabase.from('participants').insert({ full_name: name });
-            if (error) { alert('Errore: questo artista potrebbe già esistere.'); }
-            document.getElementById('new-participant-name').value = '';
-            await renderAdminParticipants();
-            await renderAdminResults(); // Aggiorna per includere il nuovo artista con 0 voti
-            showLoading(false);
-        };
-        
-        const handleDeleteParticipant = async (id, name) => {
-            if (!confirm(`Sei sicuro di voler eliminare "${name}"? Questa azione è irreversibile e cancellerà anche tutti i voti associati.`)) return;
-            showLoading(true);
-            // La cancellazione a cascata definita nel DB si occuperà di 'vote_choices'
-            await supabase.from('participants').delete().eq('id', id);
-            await renderAdminParticipants();
-            await renderAdminResults();
-            showLoading(false);
-        };
-
-        // --- GESTIONE DEGLI EVENTI ---
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_IN') {
-                state.user = session.user;
-                await initializeUserView();
-            } else if (event === 'SIGNED_OUT') {
-                navigateTo('auth');
-            }
-        });
-        
-        document.getElementById('send-otp-btn').addEventListener('click', handleSendOtp);
-        document.getElementById('verify-otp-btn').addEventListener('click', handleVerifyOtp);
-        document.getElementById('change-email-btn').addEventListener('click', () => {
-            document.getElementById('email-form').style.display = 'block';
-            document.getElementById('otp-form').style.display = 'none';
-        });
-
-        document.getElementById('logout-btn-voted').addEventListener('click', handleLogout);
-        document.getElementById('logout-btn-closed').addEventListener('click', handleLogout);
-        document.getElementById('logout-btn-admin').addEventListener('click', handleLogout);
-        document.getElementById('admin-login-link').addEventListener('click', handleAdminLogin);
-
-        document.getElementById('participant-grid').addEventListener('click', handleParticipantSelection);
-        document.getElementById('submit-vote-btn').addEventListener('click', handleSubmitVote);
-
-        // Event listener per il pannello admin (delegati)
-        document.getElementById('admin-screen').addEventListener('click', async (e) => {
-            const target = e.target;
-            if (target.id === 'add-night-btn') await handleAddNight();
-            if (target.id === 'add-participant-btn') await handleAddParticipant();
-            
-            if (target.classList.contains('toggle-night-btn')) {
-                const id = target.dataset.id;
-                const isOpen = target.dataset.isOpen === 'true';
-                await handleToggleNight(id, isOpen);
-            }
-            if (target.classList.contains('delete-participant-btn')) {
-                const id = target.dataset.id;
-                const name = target.dataset.name;
-                await handleDeleteParticipant(id, name);
-            }
-        });
-
-        // --- INIZIALIZZAZIONE ---
-        // Avvia l'app controllando se l'utente è già loggato
-        const checkInitialSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                state.user = session.user;
-                await initializeUserView();
-            } else {
-                navigateTo('auth');
-            }
-        };
-
-        checkInitialSession();
-    });
-    </script>
-</body>
-</html>
+-- Inserisci alcuni artisti di esempio
+INSERT INTO public.participants (full_name) VALUES
+  ('The Midnight Bloom'),
+  ('Solar Flare'),
+  ('Echo Collective'),
+  ('Crimson Tide'),
+  ('Lunar Echoes'),
+  ('Starlight Brigade'),
+  ('Neon Prophets'),
+  ('Golden Haze');
