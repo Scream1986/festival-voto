@@ -6,326 +6,700 @@
     <title>Festival Voting</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --header-bg: #000; --button-primary-bg: #ffc107; --button-primary-text: #000; --secondary-color: #6c757d; --success-color: #28a745; --danger-color: #dc3545; --light-color: #f8f9fa; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; background-color: var(--light-color); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1rem 0; }
-        .app-container { width: 100%; max-width: 480px; background-color: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); overflow: hidden; }
-        header { background-color: var(--header-bg); color: white; text-align: center; padding: 0.5rem; position: relative; }
+        /* Stile ispirato al file fornito, adattato per un tema scuro */
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --primary-color: #ffc107; /* Giallo acceso */
+            --primary-text-color: #000;
+            --text-color: #ffffff;
+            --secondary-text-color: #b3b3b3;
+            --border-color: #2c2c2c;
+            --danger-color: #e53935;
+            --success-color: #43a047;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem 0;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 500px;
+            background-color: var(--surface-color);
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        header {
+            background-color: #000;
+            padding: 1rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        #festival-logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin: 0;
+        }
+        
         main { padding: 1.5rem; }
-        #admin-access-link { position: absolute; top: 5px; right: 10px; color: #555; text-decoration: none; font-size: 0.7rem; }
         .screen { display: none; }
-        .screen.active { display: block; }
-        h2, h3, h4 { margin-top: 0; text-align: center; }
-        p { text-align: center; color: #666; }
-        .btn { display: block; width: 100%; padding: 0.75rem; border: none; border-radius: 4px; font-size: 1rem; font-weight: bold; cursor: pointer; text-align: center; text-decoration: none; margin-top: 0.5rem; }
-        .btn-primary { background-color: var(--button-primary-bg); color: var(--button-primary-text); }
-        .btn-secondary { background-color: var(--secondary-color); color: white; }
+        .screen.active { display: block; animation: fadeIn 0.5s ease-in-out; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h2, h3 {
+            margin-top: 0;
+            text-align: center;
+            color: var(--text-color);
+        }
+
+        p {
+            text-align: center;
+            color: var(--secondary-text-color);
+            line-height: 1.6;
+        }
+
+        .form-group { margin-bottom: 1.5rem; }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--secondary-text-color);
+        }
+
+        input[type="email"], input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 0.85rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            box-sizing: border-box;
+            background-color: #2c2c2c;
+            color: var(--text-color);
+            font-size: 1rem;
+        }
+        input[type="email"]:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.2);
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 0.85rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            margin-top: 0.5rem;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .btn:active { transform: scale(0.98); }
+
+        .btn-primary { background-color: var(--primary-color); color: var(--primary-text-color); }
+        .btn-primary:disabled { background-color: #555; color: #888; cursor: not-allowed; }
+        .btn-secondary { background-color: #333; color: var(--text-color); border: 1px solid var(--border-color); }
         .btn-danger { background-color: var(--danger-color); color: white; }
-        .btn-google { background-color: #4285F4; color: white; }
-        .btn-logout { background-color: var(--danger-color); color: white; margin-top: 1rem; }
-        #loading-spinner { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; background-color: rgba(255,255,255,0.8); padding: 2rem; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); font-weight: bold; }
-        .participant-list { list-style-type: none; padding: 0; }
-        .participant-item { display: flex; align-items: center; padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 0.5rem; background-color: #fff; }
-        .participant-item input[type="checkbox"] { width: 1.5rem; height: 1.5rem; margin-right: 1rem; accent-color: var(--button-primary-bg); }
-        .participant-item label { font-size: 1.1rem; flex-grow: 1; }
-        #vote-counter { text-align: center; margin-bottom: 1rem; font-weight: bold; font-size: 1.1rem; }
-        .admin-tabs { display: flex; justify-content: center; margin-bottom: 1rem; }
-        .admin-tab { padding: 0.5rem 1rem; cursor: pointer; border-bottom: 2px solid transparent; }
-        .admin-tab.active { border-bottom-color: var(--button-primary-bg); font-weight: bold; }
-        .admin-content { display: none; }
-        .admin-content.active { display: block; }
-        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border: 1px solid #eee; border-radius: 4px; margin-bottom: 0.5rem; }
-        .list-item-actions button { margin-left: 0.25rem; }
-        .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 28px; }
-        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--success-color); }
-        input:checked + .slider:before { transform: translateX(22px); }
+        .btn-sm { padding: 0.5rem 1rem; font-size: 0.875rem; }
+
+        #loading-spinner {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2000;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        
+        .participant-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+        }
+
+        .participant-item {
+            padding: 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s;
+            user-select: none;
+        }
+        .participant-item.selected {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: var(--primary-text-color);
+            font-weight: bold;
+        }
+
+        .admin-section {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .admin-section h3 { text-align: left; font-size: 1.2rem; }
+
+        .admin-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background-color: #2a2a2a;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+        }
+
+        .admin-actions { display: flex; gap: 0.5rem; }
+
+        .footer-link {
+            text-align: center;
+            margin-top: 2rem;
+            font-size: 0.8rem;
+        }
+        .footer-link a {
+            color: var(--secondary-text-color);
+            cursor: pointer;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
     <div id="loading-spinner">Caricamento...</div>
-    <div class="app-container">
-        <header id="app-header">
-            <a href="#" id="admin-access-link">Admin</a>
-            <img src="logo.png" alt="Festival Logo" style="height: 60px; width: auto; display: block; margin: 0 auto;">
-        </header>
-        <main>
-            <div id="login-screen" class="screen active">
-                <h2>Benvenuto/a!</h2>
-                <p>Accedi per esprimere le tue preferenze per gli artisti in gara.</p>
-                <button id="login-btn" class="btn btn-google">Vota con Google</button>
-            </div>
 
-            <div id="home-screen" class="screen">
-                <h2 id="welcome-message"></h2>
-                <div id="event-selection">
-                    <p>Seleziona la serata per cui vuoi votare:</p>
-                    <div id="open-events-container"></div>
+    <div class="app-container">
+        <header>
+            <h1 id="festival-logo">FESTIVAL</h1>
+        </header>
+
+        <main>
+            <div id="auth-screen" class="screen">
+                <h2>Accedi per Votare</h2>
+                <p>Inserisci la tua email per ricevere un codice di accesso. Potrai votare una sola volta per serata.</p>
+                <div id="email-form">
+                    <div class="form-group">
+                        <label for="user-email">La tua Email</label>
+                        <input type="email" id="user-email" placeholder="nome@esempio.com">
+                    </div>
+                    <button id="send-otp-btn" class="btn btn-primary">Ricevi Codice</button>
                 </div>
-                <div id="voting-status"></div>
-                <button id="logout-btn" class="btn btn-logout">Esci</button>
+                <div id="otp-form" style="display: none;">
+                    <p>Abbiamo inviato un codice a <strong id="otp-email-display"></strong>. Inseriscilo qui sotto.</p>
+                    <div class="form-group">
+                        <label for="user-otp">Codice di Accesso</label>
+                        <input type="text" id="user-otp" placeholder="123456" inputmode="numeric" autocomplete="one-time-code">
+                    </div>
+                    <button id="verify-otp-btn" class="btn btn-primary">Verifica e Accedi</button>
+                    <button id="change-email-btn" class="btn btn-secondary btn-sm" style="margin-top: 1rem;">Cambia Email</button>
+                </div>
             </div>
 
             <div id="voting-screen" class="screen">
-                <h2 id="voting-event-name"></h2>
-                <p>Puoi esprimere fino a 3 preferenze. Le tue scelte sono definitive.</p>
-                <div id="vote-counter">Preferenze selezionate: 0 / 3</div>
-                <ul id="participant-list" class="participant-list"></ul>
-                <button id="submit-vote-btn" class="btn btn-primary" disabled>Invia Voto</button>
-                <button id="back-to-home-btn" class="btn btn-secondary">Torna Indietro</button>
+                <h2 id="voting-night-name"></h2>
+                <p>Seleziona i tuoi 3 artisti preferiti per questa serata. La tua scelta è definitiva.</p>
+                <div id="participant-grid" class="participant-grid"></div>
+                <p id="selection-counter" style="font-weight: bold; margin-top: 1.5rem; color: var(--primary-color); height: 20px;"></p>
+                <button id="submit-vote-btn" class="btn btn-primary" style="margin-top: 0.5rem;" disabled>Invia il Tuo Voto</button>
+            </div>
+
+            <div id="voted-screen" class="screen">
+                <h2>Grazie!</h2>
+                <p>Il tuo voto per la serata è stato registrato con successo. Torna domani per la prossima serata!</p>
+                <button id="logout-btn-voted" class="btn btn-secondary">Esci</button>
+            </div>
+
+            <div id="closed-screen" class="screen">
+                <h2>Votazioni Chiuse</h2>
+                <p>Al momento non ci sono votazioni aperte. Riprova più tardi o durante la prossima serata del festival.</p>
+                 <button id="logout-btn-closed" class="btn btn-secondary">Esci</button>
             </div>
 
             <div id="admin-screen" class="screen">
                 <h2>Pannello Admin</h2>
-                <div class="admin-tabs">
-                    <div class="admin-tab active" data-tab="events">Eventi</div>
-                    <div class="admin-tab" data-tab="participants">Partecipanti</div>
-                    <div class="admin-tab" data-tab="results">Risultati</div>
+                <div class="admin-section">
+                    <h3>Gestione Serate</h3>
+                    <div id="nights-list"></div>
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <input type="text" id="new-night-name" placeholder="Nome nuova serata (es. Serata 1)">
+                    </div>
+                    <button id="add-night-btn" class="btn btn-secondary btn-sm">Aggiungi Serata</button>
                 </div>
-                <div id="admin-tab-events" class="admin-content active"><h4>Gestione Eventi</h4><div id="events-list"></div><hr><input type="text" id="new-event-name" placeholder="Nome nuovo evento" style="width: 100%; padding: 0.5rem; box-sizing: border-box; margin-bottom: 0.5rem;"><button id="add-event-btn" class="btn btn-secondary">Aggiungi Evento</button></div>
-                <div id="admin-tab-participants" class="admin-content"><h4>Gestione Partecipanti</h4><div id="participants-management-list"></div><hr><input type="text" id="new-participant-name" placeholder="Nome nuovo partecipante" style="width: 100%; padding: 0.5rem; box-sizing: border-box; margin-bottom: 0.5rem;"><button id="add-participant-btn" class="btn btn-secondary">Aggiungi Partecipante</button></div>
-                <div id="admin-tab-results" class="admin-content"><h4>Risultati Votazioni</h4><select id="results-event-filter" style="width: 100%; padding: 0.5rem; margin-bottom: 1rem;"></select><div id="results-container"></div></div>
-                <button id="exit-admin-btn" class="btn btn-secondary">Esci dal Pannello</button>
+                <div class="admin-section">
+                    <h3>Gestione Artisti</h3>
+                    <div id="participants-list"></div>
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <input type="text" id="new-participant-name" placeholder="Nome nuovo artista">
+                    </div>
+                    <button id="add-participant-btn" class="btn btn-secondary btn-sm">Aggiungi Artista</button>
+                </div>
+                <div class="admin-section">
+                    <h3>Risultati in Tempo Reale</h3>
+                    <div id="results-list"></div>
+                </div>
+                <button id="logout-btn-admin" class="btn btn-danger">Esci</button>
+            </div>
+             <div class="footer-link">
+                <a id="admin-login-link">Accesso Admin</a>
             </div>
         </main>
     </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const supabaseUrl = 'https://kicxxorhyloewgjfqpde.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtpY3h4b3JoeWxvZXdnamZxcGRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3NjU5MDEsImV4cCI6MjA3MTM0MTkwMX0.My-bBY9OfMKGWd0i-ocJW9JftYKRujpwRQATt5VBxJw';
-    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const SUPABASE_URL = 'https://piizdbesekycwotshcmk.supabase.co';
+        const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaXpkYmVzZWt5Y3dvdHNoY21rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4NjAwOTYsImV4cCI6MjA3MTQzNjA5Nn0.tPYSxgxE37VkzpMIbFzEHRc80CFspS_Wb0umUboWl-4';
+        const supabase = window.supabase.createClient(SUPABASE_URL, ANON_KEY);
 
-    //============== CAMBIA IL TUO CODICE SEGRETO QUI ==============
-    const ADMIN_SECRET_CODE = 'FESTIVAL2025';
-    //=============================================================
-
-    let state = {
-        currentUser: null,
-        selectedEvent: null,
-        isAdmin: false, // Traccia se l'accesso admin è stato sbloccato
-        activeScreen: 'login',
-    };
-
-    const screens = {
-        login: document.getElementById('login-screen'),
-        home: document.getElementById('home-screen'),
-        voting: document.getElementById('voting-screen'),
-        admin: document.getElementById('admin-screen'),
-    };
-    const loadingSpinner = document.getElementById('loading-spinner');
-
-    const showLoading = (show) => { loadingSpinner.style.display = show ? 'block' : 'none'; };
-    const navigateTo = (screenId) => {
-        state.activeScreen = screenId;
-        Object.values(screens).forEach(s => s.classList.remove('active'));
-        if (screens[screenId]) screens[screenId].classList.add('active');
-    };
-
-    const checkUserSession = async () => {
-        showLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            state.currentUser = session.user;
-            renderHomeScreen();
-            navigateTo('home');
-        } else {
-            navigateTo('login');
-        }
-        showLoading(false);
-    };
-
-    const handleLogin = async () => {
-        showLoading(true);
-        const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href }});
-        if (error) { alert('Errore durante il login: ' + error.message); showLoading(false); }
-    };
-
-    const handleLogout = async () => {
-        showLoading(true);
-        await supabase.auth.signOut();
-        state.currentUser = null;
-        state.isAdmin = false; // Resetta l'accesso admin al logout
-        navigateTo('login');
-        showLoading(false);
-    };
-
-    const renderHomeScreen = async () => {
-        document.getElementById('welcome-message').textContent = `Ciao!`;
-        const container = document.getElementById('open-events-container');
-        const statusDiv = document.getElementById('voting-status');
-        container.innerHTML = '';
-        statusDiv.innerHTML = 'Caricamento serate...';
-        
-        const { data: openEvents, error } = await supabase.from('events').select('*').eq('is_open', true);
-        
-        if (error) { statusDiv.innerHTML = 'Errore nel caricare le serate.'; return; }
-
-        if (openEvents.length === 0) {
-            statusDiv.innerHTML = '<p>Al momento non ci sono votazioni aperte. Riprova più tardi!</p>';
-        } else {
-            statusDiv.innerHTML = '';
-            openEvents.forEach(event => {
-                const btn = document.createElement('button');
-                btn.className = 'btn btn-primary';
-                btn.textContent = `Vota per: ${event.name}`;
-                btn.onclick = () => startVoting(event);
-                container.appendChild(btn);
-            });
-        }
-    };
-    
-    const startVoting = async (event) => {
-        state.selectedEvent = event;
-        showLoading(true);
-        
-        const { count, error } = await supabase.from('votes').select('*', { count: 'exact', head: true }).eq('user_id', state.currentUser.id).eq('event_id', event.id);
-        if (error) { alert("Errore nel controllo dei voti. Riprova."); showLoading(false); return; }
-
-        if (count >= 3) {
-            alert(`Hai già espresso le tue 3 preferenze per "${event.name}". Grazie per aver votato!`);
-            showLoading(false);
-            return;
-        }
-        
-        await renderVotingScreen();
-        navigateTo('voting');
-        showLoading(false);
-    };
-
-    const renderVotingScreen = async () => {
-        document.getElementById('voting-event-name').textContent = state.selectedEvent.name;
-        const list = document.getElementById('participant-list');
-        list.innerHTML = 'Caricamento partecipanti...';
-        const { data: participants, error } = await supabase.from('participants').select('*').order('name');
-        if (error) { list.innerHTML = 'Errore nel caricare i partecipanti.'; return; }
-        list.innerHTML = participants.map(p => `<li class="participant-item"><input type="checkbox" id="p-${p.id}" value="${p.id}"><label for="p-${p.id}">${p.name}</label></li>`).join('');
-        updateVoteCounter();
-    };
-    
-    const updateVoteCounter = () => {
-        const checkedBoxes = document.querySelectorAll('#participant-list input:checked');
-        const count = checkedBoxes.length;
-        document.getElementById('vote-counter').textContent = `Preferenze selezionate: ${count} / 3`;
-        document.querySelectorAll('#participant-list input:not(:checked)').forEach(box => box.disabled = (count >= 3));
-        document.getElementById('submit-vote-btn').disabled = (count === 0 || count > 3);
-    };
-
-    const handleSubmitVote = async () => {
-        const checkedBoxes = document.querySelectorAll('#participant-list input:checked');
-        if (checkedBoxes.length === 0 || checkedBoxes.length > 3) { alert("Devi selezionare da 1 a 3 preferenze."); return; }
-        if (!confirm(`Stai per inviare ${checkedBoxes.length} voti. Sei sicuro? L'azione è irreversibile.`)) return;
-        
-        showLoading(true);
-        const votesToInsert = Array.from(checkedBoxes).map(box => ({ user_id: state.currentUser.id, participant_id: parseInt(box.value), event_id: state.selectedEvent.id }));
-        const { error } = await supabase.from('votes').insert(votesToInsert);
-        showLoading(false);
-        if (error) { alert("Si è verificato un errore durante il voto. È possibile che tu abbia già votato o che la votazione sia stata chiusa."); console.error(error); } 
-        else { alert("Grazie per aver votato!"); navigateTo('home'); renderHomeScreen(); }
-    };
-
-    // --- Funzioni Admin ---
-    const accessAdminPanel = () => {
-        if (state.isAdmin) {
-            renderAdminPanel();
-            navigateTo('admin');
-            return;
-        }
-        const code = prompt("Inserisci il codice segreto per accedere al pannello admin:");
-        if (code === ADMIN_SECRET_CODE) {
-            state.isAdmin = true;
-            renderAdminPanel();
-            navigateTo('admin');
-        } else if (code) { // se l'utente ha scritto qualcosa ma è sbagliato
-            alert("Codice errato.");
-        }
-    };
-
-    const renderAdminPanel = () => {
-        switchAdminTab('events');
-        renderAdminEvents();
-        renderAdminParticipants();
-        renderAdminResults();
-    };
-    
-    const switchAdminTab = (tabId) => {
-        document.querySelectorAll('.admin-tab').forEach(tab => tab.classList.remove('active'));
-        document.querySelector(`.admin-tab[data-tab="${tabId}"]`).classList.add('active');
-        document.querySelectorAll('.admin-content').forEach(content => content.classList.remove('active'));
-        document.getElementById(`admin-tab-${tabId}`).classList.add('active');
-    };
-    
-    const renderAdminEvents = async () => {
-        const list = document.getElementById('events-list');
-        list.innerHTML = 'Caricamento...';
-        const { data, error } = await supabase.from('events').select('*').order('created_at', { ascending: false });
-        if (error) { list.innerHTML = 'Errore'; return; }
-        list.innerHTML = data.map(event => `<div class="list-item"><span><strong>${event.name}</strong></span><div class="list-item-actions"><label class="switch"><input type="checkbox" class="event-toggle" data-event-id="${event.id}" ${event.is_open ? 'checked' : ''}><span class="slider"></span></label><button class="btn-danger" style="padding:0.2rem 0.5rem;font-size:0.8rem;" onclick="window.deleteEvent(${event.id})">&times;</button></div></div>`).join('');
-    };
-
-    const renderAdminParticipants = async () => {
-        const list = document.getElementById('participants-management-list');
-        list.innerHTML = 'Caricamento...';
-        const { data, error } = await supabase.from('participants').select('*').order('name');
-        if (error) { list.innerHTML = 'Errore'; return; }
-        list.innerHTML = data.map(p => `<div class="list-item"><span>${p.name}</span><button class="btn-danger" style="padding:0.2rem 0.5rem;font-size:0.8rem;" onclick="window.deleteParticipant(${p.id})">&times;</button></div>`).join('');
-    };
-    
-    const renderAdminResults = async () => {
-        const container = document.getElementById('results-container');
-        const filter = document.getElementById('results-event-filter');
-        container.innerHTML = 'Seleziona un evento per vedere i risultati.';
-        const { data: events, error: eventsError } = await supabase.from('events').select('id, name').order('name');
-        if (eventsError) { filter.innerHTML = '<option>Errore</option>'; return; }
-        filter.innerHTML = '<option value="">-- Seleziona un evento --</option>' + events.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
-        
-        filter.onchange = async () => {
-            const eventId = filter.value;
-            if (!eventId) { container.innerHTML = 'Seleziona un evento per vedere i risultati.'; return; }
-            container.innerHTML = 'Calcolo dei risultati...';
-            const { data: votes, error } = await supabase.from('votes').select(`participant_id, participants ( name )`).eq('event_id', eventId);
-            if (error) { container.innerHTML = 'Errore nel caricamento dei voti.'; return; }
-            const counts = votes.reduce((acc, vote) => { const name = vote.participants.name; acc[name] = (acc[name] || 0) + 1; return acc; }, {});
-            const sortedResults = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-            if (sortedResults.length === 0) { container.innerHTML = '<p>Nessun voto registrato.</p>'; } 
-            else { container.innerHTML = sortedResults.map(([name, count], index) => `<div class="list-item"><span><strong>#${index + 1}</strong> ${name}</span><span style="font-weight:bold;">${count} voti</span></div>`).join(''); }
+        // Stato globale dell'applicazione
+        const state = {
+            user: null,
+            isAdmin: false,
+            activeNight: null,
+            participants: [],
+            selectedParticipants: new Set(),
+            emailForOtp: '',
         };
-    };
-    
-    window.deleteParticipant = async (id) => {
-        if (confirm('Sei sicuro di voler eliminare questo partecipante?')) { showLoading(true); await supabase.from('participants').delete().eq('id', id); await renderAdminParticipants(); showLoading(false); }
-    };
-    window.deleteEvent = async (id) => {
-        if (confirm('Sei sicuro di voler eliminare questo evento? Verranno eliminati anche tutti i voti associati!')) { showLoading(true); await supabase.from('events').delete().eq('id', id); await renderAdminEvents(); showLoading(false); }
-    };
 
-    // Event Listeners
-    document.getElementById('login-btn').addEventListener('click', handleLogin);
-    document.getElementById('logout-btn').addEventListener('click', handleLogout);
-    document.getElementById('back-to-home-btn').addEventListener('click', () => navigateTo('home'));
-    document.getElementById('admin-access-link').addEventListener('click', accessAdminPanel);
-    document.getElementById('exit-admin-btn').addEventListener('click', () => navigateTo(state.currentUser ? 'home' : 'login'));
-    document.getElementById('submit-vote-btn').addEventListener('click', handleSubmitVote);
-    document.getElementById('participant-list').addEventListener('change', updateVoteCounter);
-    
-    document.querySelectorAll('.admin-tab').forEach(tab => tab.addEventListener('click', () => switchAdminTab(tab.dataset.tab)));
-    document.getElementById('add-participant-btn').addEventListener('click', async () => {
-        const input = document.getElementById('new-participant-name');
-        if (input.value.trim()) { showLoading(true); await supabase.from('participants').insert({ name: input.value.trim() }); input.value = ''; await renderAdminParticipants(); showLoading(false); }
-    });
-    document.getElementById('add-event-btn').addEventListener('click', async () => {
-        const input = document.getElementById('new-event-name');
-        if (input.value.trim()) { showLoading(true); await supabase.from('events').insert({ name: input.value.trim() }); input.value = ''; await renderAdminEvents(); showLoading(false); }
-    });
-    document.getElementById('events-list').addEventListener('change', async (e) => {
-        if (e.target.classList.contains('event-toggle')) {
-            showLoading(true); await supabase.from('events').update({ is_open: e.target.checked }).eq('id', e.target.dataset.eventId); showLoading(false);
-        }
-    });
+        // Riferimenti agli elementi del DOM
+        const screens = {
+            auth: document.getElementById('auth-screen'),
+            voting: document.getElementById('voting-screen'),
+            voted: document.getElementById('voted-screen'),
+            closed: document.getElementById('closed-screen'),
+            admin: document.getElementById('admin-screen'),
+        };
+        const loadingSpinner = document.getElementById('loading-spinner');
 
-    checkUserSession();
-});
-</script>
+        // --- FUNZIONI DI UTILITÀ ---
+        const showLoading = (show) => {
+            loadingSpinner.style.display = show ? 'block' : 'none';
+        };
+
+        const navigateTo = (screenId) => {
+            Object.values(screens).forEach(s => s.classList.remove('active'));
+            if (screens[screenId]) {
+                screens[screenId].classList.add('active');
+            }
+        };
+
+        // --- LOGICA DI AUTENTICAZIONE ---
+
+        // Invia il codice OTP all'email dell'utente
+        const handleSendOtp = async () => {
+            const email = document.getElementById('user-email').value.trim();
+            if (!email) {
+                alert('Per favore, inserisci un indirizzo email valido.');
+                return;
+            }
+            showLoading(true);
+            const { error } = await supabase.auth.signInWithOtp({ email });
+            showLoading(false);
+            if (error) {
+                console.error('Errore invio OTP:', error);
+                alert(`Impossibile inviare il codice: ${error.message}`);
+            } else {
+                state.emailForOtp = email;
+                document.getElementById('otp-email-display').textContent = email;
+                document.getElementById('email-form').style.display = 'none';
+                document.getElementById('otp-form').style.display = 'block';
+            }
+        };
+
+        // Verifica il codice OTP inserito
+        const handleVerifyOtp = async () => {
+            const token = document.getElementById('user-otp').value.trim();
+            if (!token) {
+                alert('Per favore, inserisci il codice che hai ricevuto.');
+                return;
+            }
+            showLoading(true);
+            const { error } = await supabase.auth.verifyOtp({
+                email: state.emailForOtp,
+                token: token,
+                type: 'email',
+            });
+            showLoading(false);
+            if (error) {
+                console.error('Errore verifica OTP:', error);
+                alert(`Codice non valido: ${error.message}`);
+            }
+            // Se la verifica ha successo, onAuthStateChange si attiverà e gestirà la navigazione.
+        };
+
+        const handleLogout = async () => {
+            showLoading(true);
+            await supabase.auth.signOut();
+            state.user = null;
+            state.isAdmin = false;
+            // Resetta i campi dei form
+            document.getElementById('user-email').value = '';
+            document.getElementById('user-otp').value = '';
+            document.getElementById('email-form').style.display = 'block';
+            document.getElementById('otp-form').style.display = 'none';
+            showLoading(false);
+            navigateTo('auth');
+        };
+
+        const handleAdminLogin = async () => {
+            const code = prompt('Inserisci il codice di accesso admin:');
+            if (!code) return;
+            showLoading(true);
+            const { data, error } = await supabase.from('admins').select('code').eq('code', code).single();
+            if (error || !data) {
+                showLoading(false);
+                alert('Codice admin non valido.');
+                return;
+            }
+            state.isAdmin = true;
+            await initializeAdminView();
+        };
+
+        // --- LOGICA PRINCIPALE (PER UTENTI VOTANTI) ---
+        const initializeUserView = async () => {
+            showLoading(true);
+            // 1. Cerca una serata di voto aperta
+            const { data: night, error: nightError } = await supabase
+                .from('nights')
+                .select('*')
+                .eq('is_open', true)
+                .single();
+
+            if (nightError || !night) {
+                console.log('Nessuna votazione aperta.');
+                state.activeNight = null;
+                navigateTo('closed');
+                showLoading(false);
+                return;
+            }
+            state.activeNight = night;
+
+            // 2. Controlla se l'utente ha già votato per questa serata
+            const { data: existingVote, error: voteError } = await supabase
+                .from('votes')
+                .select('id')
+                .eq('user_id', state.user.id)
+                .eq('night_id', state.activeNight.id)
+                .single();
+            
+            if (existingVote) {
+                navigateTo('voted');
+                showLoading(false);
+                return;
+            }
+
+            // 3. Se non ha votato, carica i partecipanti
+            const { data: participants, error: participantsError } = await supabase
+                .from('participants')
+                .select('*')
+                .order('full_name');
+            
+            if (participantsError) {
+                alert('Errore nel caricamento degli artisti.');
+                showLoading(false);
+                return;
+            }
+            state.participants = participants;
+            renderVotingScreen();
+            navigateTo('voting');
+            showLoading(false);
+        };
+        
+        const renderVotingScreen = () => {
+            document.getElementById('voting-night-name').textContent = state.activeNight.name;
+            const grid = document.getElementById('participant-grid');
+            grid.innerHTML = '';
+            state.participants.forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'participant-item';
+                item.textContent = p.full_name;
+                item.dataset.id = p.id;
+                grid.appendChild(item);
+            });
+            updateSelectionCounter();
+        };
+        
+        const handleParticipantSelection = (event) => {
+            const target = event.target;
+            if (!target.classList.contains('participant-item')) return;
+            
+            const participantId = target.dataset.id;
+            
+            if (state.selectedParticipants.has(participantId)) {
+                state.selectedParticipants.delete(participantId);
+                target.classList.remove('selected');
+            } else {
+                if (state.selectedParticipants.size < 3) {
+                    state.selectedParticipants.add(participantId);
+                    target.classList.add('selected');
+                }
+            }
+            updateSelectionCounter();
+        };
+
+        const updateSelectionCounter = () => {
+            const count = state.selectedParticipants.size;
+            const counterEl = document.getElementById('selection-counter');
+            const submitBtn = document.getElementById('submit-vote-btn');
+
+            if (count === 3) {
+                counterEl.textContent = 'Hai selezionato 3 artisti. Pronto per votare!';
+                submitBtn.disabled = false;
+            } else {
+                counterEl.textContent = `Selezionati ${count} di 3 artisti.`;
+                submitBtn.disabled = true;
+            }
+        };
+        
+        const handleSubmitVote = async () => {
+            if (state.selectedParticipants.size !== 3) {
+                alert('Devi selezionare esattamente 3 artisti.');
+                return;
+            }
+            if (!confirm('Sei sicuro di voler inviare questo voto? La scelta è definitiva.')) return;
+
+            showLoading(true);
+            
+            // 1. Inserisci il voto nella tabella 'votes'
+            const { data: vote, error: voteError } = await supabase
+                .from('votes')
+                .insert({
+                    user_id: state.user.id,
+                    night_id: state.activeNight.id
+                })
+                .select('id')
+                .single();
+
+            if (voteError) {
+                console.error('Errore inserimento voto:', voteError);
+                alert('Si è verificato un errore durante la registrazione del voto. Potresti aver già votato.');
+                showLoading(false);
+                await initializeUserView(); // Ricarica lo stato
+                return;
+            }
+
+            // 2. Inserisci le scelte nella tabella 'vote_choices'
+            const choices = Array.from(state.selectedParticipants).map(participant_id => ({
+                vote_id: vote.id,
+                participant_id: participant_id,
+            }));
+
+            const { error: choicesError } = await supabase.from('vote_choices').insert(choices);
+
+            if (choicesError) {
+                console.error('Errore inserimento scelte:', choicesError);
+                alert('Si è verificato un errore critico. Contatta l'assistenza.');
+                // Prova a cancellare il voto orfano per consistenza
+                await supabase.from('votes').delete().eq('id', vote.id);
+                showLoading(false);
+                return;
+            }
+
+            // 3. Voto andato a buon fine, naviga alla schermata di ringraziamento
+            navigateTo('voted');
+            showLoading(false);
+        };
+
+
+        // --- LOGICA ADMIN ---
+        const initializeAdminView = async () => {
+            showLoading(true);
+            await Promise.all([
+                renderAdminNights(),
+                renderAdminParticipants(),
+                renderAdminResults(),
+            ]);
+            navigateTo('admin');
+            showLoading(false);
+        };
+
+        const renderAdminNights = async () => {
+            const { data, error } = await supabase.from('nights').select('*').order('created_at');
+            if (error) { console.error(error); return; }
+            const list = document.getElementById('nights-list');
+            list.innerHTML = data.map(n => `
+                <div class="admin-list-item">
+                    <span>${n.name} - ${n.is_open ? '<strong>APERTA</strong>' : 'CHIUSA'}</span>
+                    <div class="admin-actions">
+                        <button class="btn ${n.is_open ? 'btn-danger' : 'btn-primary'} btn-sm toggle-night-btn" data-id="${n.id}" data-is-open="${n.is_open}">
+                            ${n.is_open ? 'Chiudi' : 'Apri'}
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        };
+        
+        const renderAdminParticipants = async () => {
+            const { data, error } = await supabase.from('participants').select('*').order('full_name');
+            if (error) { console.error(error); return; }
+            const list = document.getElementById('participants-list');
+            list.innerHTML = data.map(p => `
+                <div class="admin-list-item">
+                    <span>${p.full_name}</span>
+                    <button class="btn btn-danger btn-sm delete-participant-btn" data-id="${p.id}" data-name="${p.full_name}">&times;</button>
+                </div>
+            `).join('');
+        };
+        
+        const renderAdminResults = async () => {
+            const { data, error } = await supabase
+                .from('vote_choices')
+                .select('participants(full_name)');
+            
+            if (error) { console.error(error); return; }
+            
+            const voteCounts = data.reduce((acc, choice) => {
+                const name = choice.participants.full_name;
+                acc[name] = (acc[name] || 0) + 1;
+                return acc;
+            }, {});
+
+            const sortedResults = Object.entries(voteCounts).sort(([, a], [, b]) => b - a);
+
+            const list = document.getElementById('results-list');
+            if (sortedResults.length === 0) {
+                list.innerHTML = '<p style="text-align: left;">Nessun voto registrato.</p>';
+                return;
+            }
+            list.innerHTML = sortedResults.map(([name, count]) => `
+                <div class="admin-list-item">
+                    <span>${name}</span>
+                    <strong>${count} voti</strong>
+                </div>
+            `).join('');
+        };
+
+        const handleAddNight = async () => {
+            const name = document.getElementById('new-night-name').value.trim();
+            if (!name) return;
+            showLoading(true);
+            await supabase.from('nights').insert({ name: name });
+            document.getElementById('new-night-name').value = '';
+            await renderAdminNights();
+            showLoading(false);
+        };
+        
+        const handleToggleNight = async (id, currentStatus) => {
+            const newStatus = !currentStatus;
+            if (newStatus && !confirm('Aprire questa serata chiuderà automaticamente ogni altra serata. Continuare?')) return;
+            
+            showLoading(true);
+            if (newStatus) {
+                // Chiudi tutte le altre serate
+                await supabase.from('nights').update({ is_open: false }).eq('is_open', true);
+            }
+            // Apri/Chiudi la serata selezionata
+            await supabase.from('nights').update({ is_open: newStatus }).eq('id', id);
+            await renderAdminNights();
+            showLoading(false);
+        };
+
+        const handleAddParticipant = async () => {
+            const name = document.getElementById('new-participant-name').value.trim();
+            if (!name) return;
+            showLoading(true);
+            const { error } = await supabase.from('participants').insert({ full_name: name });
+            if (error) { alert('Errore: questo artista potrebbe già esistere.'); }
+            document.getElementById('new-participant-name').value = '';
+            await renderAdminParticipants();
+            await renderAdminResults(); // Aggiorna per includere il nuovo artista con 0 voti
+            showLoading(false);
+        };
+        
+        const handleDeleteParticipant = async (id, name) => {
+            if (!confirm(`Sei sicuro di voler eliminare "${name}"? Questa azione è irreversibile e cancellerà anche tutti i voti associati.`)) return;
+            showLoading(true);
+            // La cancellazione a cascata definita nel DB si occuperà di 'vote_choices'
+            await supabase.from('participants').delete().eq('id', id);
+            await renderAdminParticipants();
+            await renderAdminResults();
+            showLoading(false);
+        };
+
+        // --- GESTIONE DEGLI EVENTI ---
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_IN') {
+                state.user = session.user;
+                await initializeUserView();
+            } else if (event === 'SIGNED_OUT') {
+                navigateTo('auth');
+            }
+        });
+        
+        document.getElementById('send-otp-btn').addEventListener('click', handleSendOtp);
+        document.getElementById('verify-otp-btn').addEventListener('click', handleVerifyOtp);
+        document.getElementById('change-email-btn').addEventListener('click', () => {
+            document.getElementById('email-form').style.display = 'block';
+            document.getElementById('otp-form').style.display = 'none';
+        });
+
+        document.getElementById('logout-btn-voted').addEventListener('click', handleLogout);
+        document.getElementById('logout-btn-closed').addEventListener('click', handleLogout);
+        document.getElementById('logout-btn-admin').addEventListener('click', handleLogout);
+        document.getElementById('admin-login-link').addEventListener('click', handleAdminLogin);
+
+        document.getElementById('participant-grid').addEventListener('click', handleParticipantSelection);
+        document.getElementById('submit-vote-btn').addEventListener('click', handleSubmitVote);
+
+        // Event listener per il pannello admin (delegati)
+        document.getElementById('admin-screen').addEventListener('click', async (e) => {
+            const target = e.target;
+            if (target.id === 'add-night-btn') await handleAddNight();
+            if (target.id === 'add-participant-btn') await handleAddParticipant();
+            
+            if (target.classList.contains('toggle-night-btn')) {
+                const id = target.dataset.id;
+                const isOpen = target.dataset.isOpen === 'true';
+                await handleToggleNight(id, isOpen);
+            }
+            if (target.classList.contains('delete-participant-btn')) {
+                const id = target.dataset.id;
+                const name = target.dataset.name;
+                await handleDeleteParticipant(id, name);
+            }
+        });
+
+        // --- INIZIALIZZAZIONE ---
+        // Avvia l'app controllando se l'utente è già loggato
+        const checkInitialSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                state.user = session.user;
+                await initializeUserView();
+            } else {
+                navigateTo('auth');
+            }
+        };
+
+        checkInitialSession();
+    });
+    </script>
 </body>
 </html>
