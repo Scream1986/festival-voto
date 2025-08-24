@@ -23,15 +23,20 @@
         input[type="text"], input[type="email"] { width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .btn { display: block; width: 100%; padding: 0.75rem; border: none; border-radius: 4px; font-size: 1rem; font-weight: bold; cursor: pointer; text-align: center; text-decoration: none; margin-top: 1rem; }
         .btn:disabled { background-color: #ccc; cursor: not-allowed; }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; margin: 0; width: auto; }
         .btn-primary { background-color: var(--button-primary-bg); color: var(--button-primary-text); }
         .btn-secondary { background-color: var(--secondary-color); color: white; }
         .btn-admin { background-color: var(--button-admin-bg); color: white; }
+        .admin-controls { border: 1px solid #eee; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
+        .admin-controls h3 { margin-bottom: 1rem; }
+        .admin-contestant-list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; border-bottom: 1px solid #eee; }
+        .add-contestant-form { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
         #login-message, #voting-status { text-align: center; padding: 10px; border-radius: 5px; font-weight: bold; margin-bottom: 1rem; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <div id="loading-spinner" style="display: none; position: fixed; top: 45%; font-weight: bold;">Caricamento...</div>
+    <div id="loading-spinner" style="display: none; position: fixed; top: 45%; font-weight: bold; background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">Caricamento...</div>
 
     <div class="app-container">
         <header id="app-header">
@@ -52,136 +57,278 @@
             <div id="main-screen" class="screen">
                 <div id="admin-view" style="display: none;">
                     <h2>Pannello Amministratore</h2>
-                    <p>Loggato come <strong id="user-email-display-admin"></strong></p>
-                    <button id="logout-btn-admin" class="btn btn-admin">Esci</button>
+                    <div class="admin-controls">
+                        <h3>Gestione Serate</h3>
+                        <label for="active-event-select">Serata Attiva per il Pubblico:</label>
+                        <select id="active-event-select"><option value="serata_1">Serata 1</option><option value="serata_2">Serata 2</option></select>
+                    </div>
+                    <div class="admin-controls">
+                        <h3>Azioni e Risultati</h3>
+                        <button id="manage-contestants-btn" class="btn btn-secondary">Gestisci Partecipanti</button>
+                        <button id="general-ranking-btn" class="btn btn-primary">Classifica Generale</button>
+                        <button id="view-results-btn" class="btn btn-secondary">Risultati Dettagliati (S1+S2+Tot)</button>
+                    </div>
+                    <button id="logout-btn-admin" class="btn btn-admin" style="margin-top: 2rem;">Esci</button>
                 </div>
 
                 <div id="public-view" style="display: none;">
-                    <h2>Area Votazione</h2>
-                    <p>Loggato come <strong id="user-email-display-public"></strong></p>
+                    <h2 id="public-welcome">Area Votazione</h2>
                     <div id="voting-status"></div>
                     <div id="public-voting-area">
-                        <p>Puoi esprimere fino a <strong>3 preferenze</strong>.</p>
+                        <p>Puoi esprimere fino a <strong>3 preferenze</strong> per la serata in corso.</p>
                         <div id="contestants-container"></div>
-                        <button id="vote-btn" class="btn btn-primary">Vota</button>
+                        <button id="vote-btn" class="btn btn-primary">Vota le tue 3 preferenze</button>
                     </div>
                     <button id="logout-btn-public" class="btn btn-secondary">Esci</button>
                 </div>
+            </div>
+            
+            <div id="manage-screen" class="screen">
+                <h2>Gestione Partecipanti</h2>
+                <div id="admin-contestant-list-container"></div>
+                <div class="add-contestant-form">
+                    <input type="text" id="new-contestant-name" placeholder="Nome nuovo partecipante" style="flex-grow: 1;">
+                    <button id="add-contestant-btn" class="btn btn-primary btn-sm">Aggiungi</button>
+                </div>
+                <button id="back-to-admin-btn" class="btn btn-secondary" style="margin-top: 2rem;">Torna al Pannello</button>
             </div>
         </main>
     </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-
-    // ---------- 1. CONFIGURAZIONE: INSERISCI I TUOI DATI QUI ----------
-    
-    const SUPABASE_URL = 'INCOLLA_QUI_IL_TUO_URL_SUPABASE';
-    const SUPABASE_ANON_KEY = 'INCOLLA_QUI_LA_TUA_ANON_KEY_SUPABASE';
-    const ADMIN_EMAIL = 'INSERISCI_QUI_LA_TUA_EMAIL_DA_AMMINISTRATORE'; // IMPORTANTE!
-
+    // ---------- 1. CONFIGURAZIONE AUTOMATICA ----------
+    const SUPABASE_URL = 'https://funebgzoioakkuflbeln.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1bmViZ3pvaW9ha2t1ZmxiZWxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5NTQwMzcsImV4cCI6MjA3MTUzMDAzN30.0CYThDbWz5FTP-vTikitX_4oBjxD2lHQXprH7cJj-9M';
+    const ADMIN_EMAIL = 'robtolu@hotmail.com';
     // ---------- FINE CONFIGURAZIONE ----------
 
-
-    // --- Inizializzazione di Supabase ---
     const { createClient } = window.supabase;
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // --- Elementi del DOM ---
-    const loadingSpinner = document.getElementById('loading-spinner');
-    const screens = {
-        login: document.getElementById('login-screen'),
-        main: document.getElementById('main-screen')
-    };
-    const adminView = document.getElementById('admin-view');
-    const publicView = document.getElementById('public-view');
-    const loginBtn = document.getElementById('login-btn');
-    const logoutButtons = document.querySelectorAll('#logout-btn-admin, #logout-btn-public');
-    const voteBtn = document.getElementById('vote-btn');
-    const loginMessage = document.getElementById('login-message');
-    
-    // --- Funzioni UI ---
-    const showLoading = (isLoading) => {
-        loadingSpinner.style.display = isLoading ? 'block' : 'none';
-    };
-    
-    const navigateTo = (screenId) => {
-        Object.values(screens).forEach(s => s.classList.remove('active'));
-        if (screens[screenId]) screens[screenId].classList.add('active');
-    };
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- Elementi del DOM ---
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const screens = {
+            login: document.getElementById('login-screen'),
+            main: document.getElementById('main-screen'),
+            manage: document.getElementById('manage-screen')
+        };
+        const adminView = document.getElementById('admin-view');
+        const publicView = document.getElementById('public-view');
+        const loginBtn = document.getElementById('login-btn');
+        const logoutButtons = document.querySelectorAll('#logout-btn-admin, #logout-btn-public');
+        const voteBtn = document.getElementById('vote-btn');
+        const loginMessage = document.getElementById('login-message');
+        const activeEventSelect = document.getElementById('active-event-select');
+        const contestantsContainer = document.getElementById('contestants-container');
+        const adminContestantListContainer = document.getElementById('admin-contestant-list-container');
+        const manageContestantsBtn = document.getElementById('manage-contestants-btn');
+        const backToAdminBtn = document.getElementById('back-to-admin-btn');
+        const addContestantBtn = document.getElementById('add-contestant-btn');
+        const generalRankingBtn = document.getElementById('general-ranking-btn');
+        const viewResultsBtn = document.getElementById('view-results-btn');
+        
+        let activeEvent = 'serata_1'; // Stato locale per la serata attiva
+        
+        // --- Funzioni UI ---
+        const showLoading = (isLoading) => { loadingSpinner.style.display = isLoading ? 'flex' : 'none'; };
+        const navigateTo = (screenId) => {
+            Object.values(screens).forEach(s => s.classList.remove('active'));
+            if (screens[screenId]) screens[screenId].classList.add('active');
+        };
+        const showLoginMessage = (message, isError = false) => {
+            loginMessage.textContent = message;
+            loginMessage.style.color = isError ? 'var(--danger-color)' : 'var(--success-color)';
+        };
 
-    const showLoginMessage = (message, isError = false) => {
-        loginMessage.textContent = message;
-        loginMessage.style.color = isError ? 'var(--danger-color)' : 'var(--success-color)';
-    };
-
-    // --- Funzione Principale di Login ---
-    const handleLogin = async () => {
-        const email = document.getElementById('user-email').value;
-        if (!email) {
-            showLoginMessage('Per favore, inserisci un\'email.', true);
-            return;
-        }
-
-        showLoading(true);
-        loginBtn.disabled = true;
-
-        try {
-            const { error } = await supabase.functions.invoke('magic-link', {
-                body: { email }
+        // --- Funzioni Dati ---
+        const renderContestantList = async () => {
+            const { data, error } = await supabase.from('cantanti').select('nome').order('nome');
+            if (error) {
+                alert('Errore nel caricamento dei cantanti.');
+                return;
+            }
+            let html = '<ul class="contestant-list">';
+            data.forEach((c, index) => {
+                html += `<li class="contestant-item"><input type="checkbox" id="contestant-${index}" value="${c.nome}"><label for="contestant-${index}">${c.nome}</label></li>`;
             });
+            html += '</ul>';
+            contestantsContainer.innerHTML = html;
+            contestantsContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    if (contestantsContainer.querySelectorAll('input[type="checkbox"]:checked').length > 3) {
+                        alert('Puoi selezionare un massimo di 3 cantanti.');
+                        checkbox.checked = false;
+                    }
+                });
+            });
+        };
 
-            if (error) throw error;
-            
-            showLoginMessage('Link di accesso inviato! Controlla la tua casella di posta (anche lo spam).');
-        } catch (error) {
-            console.error("Errore durante la chiamata alla function:", error);
-            showLoginMessage('Si è verificato un errore. Riprova.', true);
-        } finally {
-            showLoading(false);
-            loginBtn.disabled = false;
-        }
-    };
+        // --- Gestione Login/Logout/Sessione ---
+        const handleLogin = async () => {
+            const email = document.getElementById('user-email').value;
+            if (!email) { showLoginMessage('Per favore, inserisci un\'email.', true); return; }
+            showLoading(true);
+            loginBtn.disabled = true;
+            try {
+                const { error } = await supabase.functions.invoke('magic-link', { body: { email } });
+                if (error) throw error;
+                showLoginMessage('Link di accesso inviato! Controlla la tua casella di posta (anche lo spam).');
+            } catch (error) {
+                showLoginMessage('Si è verificato un errore. Riprova.', true);
+            } finally {
+                showLoading(false);
+                loginBtn.disabled = false;
+            }
+        };
 
-    loginBtn.addEventListener('click', handleLogin);
+        loginBtn.addEventListener('click', handleLogin);
 
-    // --- Gestione Logout ---
-    logoutButtons.forEach(btn => {
-        btn.addEventListener('click', async () => {
+        logoutButtons.forEach(btn => btn.addEventListener('click', async () => {
             showLoading(true);
             await supabase.auth.signOut();
             showLoading(false);
-            // onAuthStateChange gestirà il cambio di schermata
-        });
-    });
+        }));
 
-    // --- Gestione della Sessione Utente (La parte più importante) ---
-    supabase.auth.onAuthStateChange(async (event, session) => {
-        showLoading(true);
-        if (session && session.user) {
-            // L'utente è loggato
-            const user = session.user;
-            
-            // Controlla se è un admin
-            if (user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                document.getElementById('user-email-display-admin').textContent = user.email;
-                adminView.style.display = 'block';
-                publicView.style.display = 'none';
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            showLoading(true);
+            if (session && session.user) {
+                const user = session.user;
+                if (user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                    adminView.style.display = 'block';
+                    publicView.style.display = 'none';
+                } else {
+                    adminView.style.display = 'none';
+                    publicView.style.display = 'block';
+                    
+                    const { data, error } = await supabase.from('votanti').select(`voti_${activeEvent}`).eq('user_id', user.id).single();
+                    const publicVotingArea = document.getElementById('public-voting-area');
+
+                    if (data && data[`voti_${activeEvent}`] && data[`voti_${activeEvent}`].length > 0) {
+                        publicVotingArea.innerHTML = `<p style="text-align:center; font-weight:bold;">Grazie per aver votato per la ${activeEvent.replace('_', ' ')}!</p>`;
+                    } else {
+                        publicVotingArea.style.display = 'block';
+                        renderContestantList();
+                    }
+                }
+                navigateTo('main');
             } else {
-                // È un utente del pubblico
-                document.getElementById('user-email-display-public').textContent = user.email;
-                adminView.style.display = 'none';
-                publicView.style.display = 'block';
-                // Qui andrà la logica per mostrare la votazione...
+                navigateTo('login');
             }
-            navigateTo('main');
-        } else {
-            // L'utente non è loggato
-            navigateTo('login');
-        }
-        showLoading(false);
+            showLoading(false);
+        });
+
+        // --- Logica Voto Pubblico ---
+        voteBtn.addEventListener('click', async () => {
+            const selectedCheckboxes = contestantsContainer.querySelectorAll('input[type="checkbox"]:checked');
+            if (selectedCheckboxes.length === 0) return alert('Devi selezionare almeno un cantante.');
+            if (selectedCheckboxes.length > 3) return alert('Puoi selezionare un massimo di 3 cantanti.');
+            
+            const VotiSelezionati = Array.from(selectedCheckboxes).map(cb => cb.value);
+            
+            showLoading(true);
+            voteBtn.disabled = true;
+
+            const { data: { user } } = await supabase.auth.getUser();
+            const colonnaVoti = `voti_${activeEvent}`;
+            
+            const { error } = await supabase.from('votanti').upsert({ user_id: user.id, [colonnaVoti]: VotiSelezionati }, { onConflict: 'user_id' });
+
+            if (error) {
+                alert('Si è verificato un errore durante il salvataggio del voto.');
+                voteBtn.disabled = false;
+            } else {
+                alert('Voto registrato con successo!');
+                document.getElementById('public-voting-area').innerHTML = `<p style="text-align:center; font-weight:bold;">Grazie per aver votato per la ${activeEvent.replace('_', ' ')}!</p>`;
+            }
+            showLoading(false);
+        });
+
+        // --- Logica Admin ---
+        activeEventSelect.addEventListener('change', (e) => { activeEvent = e.target.value; });
+
+        const renderAdminContestantList = async () => {
+            const { data, error } = await supabase.from('cantanti').select('nome').order('nome');
+            if (error) return alert('Errore nel caricamento dei cantanti.');
+            let html = '<div class="admin-contestant-list">';
+            data.forEach(c => {
+                html += `<div class="admin-contestant-list-item"><span>${c.nome}</span><button class="btn btn-admin btn-sm btn-remove" data-name="${c.nome}">Rimuovi</button></div>`;
+            });
+            html += '</div>';
+            adminContestantListContainer.innerHTML = html;
+        };
+
+        manageContestantsBtn.addEventListener('click', async () => {
+            await renderAdminContestantList();
+            navigateTo('manage');
+        });
+        
+        backToAdminBtn.addEventListener('click', () => navigateTo('main'));
+        
+        addContestantBtn.addEventListener('click', async () => {
+            const nameInput = document.getElementById('new-contestant-name');
+            const newName = nameInput.value.trim();
+            if (!newName) return alert('Il nome non può essere vuoto.');
+            const { error } = await supabase.from('cantanti').insert({ nome: newName });
+            if (error) {
+                alert('Errore: questo cantante è già presente o si è verificato un altro problema.');
+            } else {
+                nameInput.value = '';
+                await renderAdminContestantList();
+            }
+        });
+
+        adminContestantListContainer.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('btn-remove')) {
+                const nameToRemove = e.target.dataset.name;
+                if (confirm(`Sei sicuro di voler rimuovere ${nameToRemove}?`)) {
+                    const { error } = await supabase.from('cantanti').delete().eq('nome', nameToRemove);
+                    if (error) { alert('Errore durante la rimozione.'); }
+                    else { await renderAdminContestantList(); }
+                }
+            }
+        });
+
+        const showResults = async (detailed = false) => {
+            showLoading(true);
+            const { data, error } = await supabase.from('votanti').select('voti_serata_1, voti_serata_2');
+            if (error) {
+                showLoading(false);
+                return alert('Errore nel caricamento dei risultati.');
+            }
+            
+            const votes = {};
+            data.forEach(row => {
+                (row.voti_serata_1 || []).forEach(nome => {
+                    if (!votes[nome]) votes[nome] = { s1: 0, s2: 0, total: 0 };
+                    votes[nome].s1++;
+                    votes[nome].total++;
+                });
+                (row.voti_serata_2 || []).forEach(nome => {
+                    if (!votes[nome]) votes[nome] = { s1: 0, s2: 0, total: 0 };
+                    votes[nome].s2++;
+                    votes[nome].total++;
+                });
+            });
+
+            const sorted = Object.entries(votes).sort(([, a], [, b]) => b.total - a.total);
+            
+            let resultsMessage = detailed ? '--- Risultati Dettagliati ---\n\n' : '--- Classifica Generale ---\n\n';
+            sorted.forEach(([nome, conteggio], index) => {
+                if (detailed) {
+                    resultsMessage += `${nome}: ${conteggio.total} voti (S1: ${conteggio.s1}, S2: ${conteggio.s2})\n`;
+                } else {
+                    resultsMessage += `${index + 1}. ${nome}: ${conteggio.total} voti\n`;
+                }
+            });
+
+            showLoading(false);
+            alert(resultsMessage || 'Nessun voto registrato.');
+        };
+        
+        generalRankingBtn.addEventListener('click', () => showResults(false));
+        viewResultsBtn.addEventListener('click', () => showResults(true));
     });
-});
 </script>
 </body>
 </html>
