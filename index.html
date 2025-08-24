@@ -3,693 +3,185 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Votazione Festival Musicale</title>
+    <title>Vocal Hub Contest</title>
     <style>
-        :root {
-            --primary-bg: #121212;
-            --secondary-bg: #1e1e1e;
-            --primary-text: #ffffff;
-            --accent-color: #ffc107;
-            --accent-text: #000000;
-            --border-color: #444444;
-            --error-color: #dc3545;
-            --success-color: #28a745;
-        }
-
-        html, body {
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--primary-bg);
-            color: var(--primary-text);
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 20px;
-            background-color: var(--secondary-bg);
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        }
-
-        header {
-            text-align: center;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        #festival-logo {
-            font-size: 2.5em;
-            font-weight: bold;
-            color: var(--accent-color);
-            margin: 0;
-            padding: 0;
-            cursor: pointer;
-        }
-
-        h1, h2, h3 {
-            color: var(--accent-color);
-        }
-
-        .view { display: none; }
-        .view.active { display: block; }
-
-        /* Form Elements */
-        input[type="email"], input[type="text"], input[type="password"] {
-            width: calc(100% - 22px);
-            padding: 10px;
-            margin: 10px 0;
-            background-color: #333;
-            color: var(--primary-text);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-        }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            background-color: var(--accent-color);
-            color: var(--accent-text);
-            border: none;
-            border-radius: 4px;
-            font-size: 1em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        button:disabled {
-            background-color: #555;
-            color: #888;
-            cursor: not-allowed;
-        }
-
-        button:not(:disabled):hover {
-            background-color: #ffca2c;
-        }
-
-        .message {
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-            text-align: center;
-        }
-        .message.success { background-color: var(--success-color); }
-        .message.error { background-color: var(--error-color); }
-
-        /* Voting Section */
-        #artists-list {
-            list-style: none;
-            padding: 0;
-        }
-        #artists-list li {
-            padding: 12px;
-            background-color: #2a2a2a;
-            border: 1px solid var(--border-color);
-            margin-bottom: 8px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.2s, border-color 0.2s;
-        }
-        #artists-list li.selected {
-            background-color: rgba(255, 193, 7, 0.2);
-            border-left: 5px solid var(--accent-color);
-        }
-        #vote-counter {
-            margin: 20px 0;
-            text-align: center;
-            font-size: 1.2em;
-        }
-
-        /* Admin Section */
-        .admin-section { margin-bottom: 30px; }
-        .admin-list { list-style: none; padding: 0; }
-        .admin-list li {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            background-color: #2a2a2a;
-            border-radius: 4px;
-            margin-bottom: 5px;
-        }
-        .admin-actions button {
-            width: auto;
-            padding: 5px 10px;
-            margin-left: 5px;
-            font-size: 0.9em;
-        }
-        .btn-delete { background-color: var(--error-color); color: white; }
-        .btn-open { background-color: var(--success-color); color: white; }
-        .btn-close { background-color: #6c757d; color: white;}
-        #results-list { font-size: 1.1em; }
-
-        /* Loader */
-        #loader {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-        }
-        .spinner {
-            border: 8px solid #f3f3f3;
-            border-top: 8px solid var(--accent-color);
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .hidden { display: none !important; }
-
-        .logout-button, .admin-login-button {
-            font-size: 0.8em;
-            text-decoration: underline;
-            background: none;
-            color: var(--accent-color);
-            padding: 5px;
-            width: auto;
-            display: block;
-            margin: 10px auto;
-        }
-        
-        #footer-admin-link {
-            text-align: center;
-            margin-top: 30px;
-        }
-
+        :root { --header-bg: #000; --button-primary-bg: #ffc107; --button-primary-text: #000; --button-admin-bg: #dc3545; --secondary-color: #6c757d; --light-color: #f8f9fa; --success-color: #28a745; --danger-color: #dc3545; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; background-color: var(--light-color); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1rem 0; }
+        .app-container { width: 100%; max-width: 480px; background-color: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); overflow: hidden; }
+        header { background-color: var(--header-bg); color: white; text-align: center; padding: 0.5rem; }
+        header img { height: 60px; width: auto; display: block; margin: 0 auto; }
+        main { padding: 1.5rem; }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        h2, h3 { margin-top: 0; text-align: center; }
+        .form-group { margin-bottom: 1rem; }
+        .contestant-list { list-style-type: none; padding: 0; }
+        .contestant-item { display: flex; align-items: center; background-color: #fdfdfd; border: 1px solid #ddd; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.5rem; }
+        .contestant-item input[type="checkbox"] { width: 1.5em; height: 1.5em; margin-right: 1rem; }
+        .contestant-item label, .admin-contestant-list-item span { font-weight: 500; flex-grow: 1; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+        input[type="text"], input[type="email"] { width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .btn { display: block; width: 100%; padding: 0.75rem; border: none; border-radius: 4px; font-size: 1rem; font-weight: bold; cursor: pointer; text-align: center; text-decoration: none; margin-top: 1rem; }
+        .btn:disabled { background-color: #ccc; cursor: not-allowed; }
+        .btn-primary { background-color: var(--button-primary-bg); color: var(--button-primary-text); }
+        .btn-secondary { background-color: var(--secondary-color); color: white; }
+        .btn-admin { background-color: var(--button-admin-bg); color: white; }
+        #login-message, #voting-status { text-align: center; padding: 10px; border-radius: 5px; font-weight: bold; margin-bottom: 1rem; }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+    <div id="loading-spinner" style="display: none; position: fixed; top: 45%; font-weight: bold;">Caricamento...</div>
 
-    <div class="container">
-        <header>
-            <h1 id="festival-logo">FESTIVAL</h1>
+    <div class="app-container">
+        <header id="app-header">
+            <img src="https://raw.githubusercontent.com/Scream1986/festival-voto/main/Logo.png" alt="Vocal Hub Logo">
         </header>
-
-        <main id="app">
-            <div id="loader" class="hidden">
-                <div class="spinner"></div>
+        <main>
+            <div id="login-screen" class="screen">
+                <h2>Benvenuto al Contest</h2>
+                <p style="text-align: center; color: #666;">Inserisci la tua email per ricevere un link di accesso e votare.</p>
+                <div id="login-message"></div>
+                <div class="form-group">
+                    <label for="user-email">La tua Email</label>
+                    <input type="email" id="user-email" placeholder="mario.rossi@email.com" autocomplete="off">
+                </div>
+                <button id="login-btn" class="btn btn-primary">Ricevi Link per Votare</button>
             </div>
 
-            <div id="auth-view" class="view">
-                <h2>Accedi per votare</h2>
-                <p>Inserisci la tua email per ricevere un codice di accesso. Potrai votare una sola volta per serata.</p>
-                <form id="auth-form">
-                    <input type="email" id="email-input" placeholder="La tua email" required>
-                    <button type="submit">Ricevi Codice</button>
-                </form>
-                <div id="auth-message" class="message hidden"></div>
-            </div>
-
-            <div id="voting-view" class="view">
-                <h2 id="night-name"></h2>
-                <p>Seleziona esattamente 3 artisti. Le tue preferenze hanno lo stesso valore.</p>
-                <ul id="artists-list"></ul>
-                <div id="vote-counter">Preferenze selezionate: <span id="selection-count">0</span>/3</div>
-                <button id="submit-vote-btn" disabled>Invia Voto</button>
-                <button id="logout-btn" class="logout-button">Esci</button>
-            </div>
-
-            <div id="thank-you-view" class="view message success">
-                Grazie, il tuo voto è stato registrato. Torna domani per la prossima serata!
-            </div>
-            
-            <div id="already-voted-view" class="view message">
-                Hai già votato per questa serata. Grazie per aver partecipato!
-                 <button id="logout-already-voted-btn" class="logout-button">Esci</button>
-            </div>
-
-            <div id="no-active-night-view" class="view message">
-                Le votazioni non sono ancora aperte. Riprova più tardi!
-                 <button id="logout-no-night-btn" class="logout-button">Esci</button>
-            </div>
-            
-            <div id="admin-login-view" class="view">
-                <h2>Accesso Admin</h2>
-                <form id="admin-login-form">
-                    <input type="password" id="admin-code-input" placeholder="Codice Admin" required>
-                    <button type="submit">Entra</button>
-                </form>
-                <div id="admin-login-error" class="message error hidden">Codice errato.</div>
-                 <button id="back-to-user-view" class="logout-button">Torna alla votazione</button>
-            </div>
-            
-            <div id="admin-dashboard-view" class="view">
-                <h2>Pannello di Controllo Admin</h2>
-
-                <div class="admin-section">
-                    <h3>Gestione Serate</h3>
-                    <form id="add-night-form">
-                        <input type="text" id="new-night-name" placeholder="Nome serata (es. Serata 1)" required>
-                        <button type="submit">Crea Serata</button>
-                    </form>
-                    <ul id="nights-list" class="admin-list"></ul>
+            <div id="main-screen" class="screen">
+                <div id="admin-view" style="display: none;">
+                    <h2>Pannello Amministratore</h2>
+                    <p>Loggato come <strong id="user-email-display-admin"></strong></p>
+                    <button id="logout-btn-admin" class="btn btn-admin">Esci</button>
                 </div>
 
-                <div class="admin-section">
-                    <h3>Gestione Artisti</h3>
-                    <form id="add-artist-form">
-                        <input type="text" id="new-artist-name" placeholder="Nome completo artista" required>
-                        <button type="submit">Aggiungi Artista</button>
-                    </form>
-                    <ul id="artists-admin-list" class="admin-list"></ul>
+                <div id="public-view" style="display: none;">
+                    <h2>Area Votazione</h2>
+                    <p>Loggato come <strong id="user-email-display-public"></strong></p>
+                    <div id="voting-status"></div>
+                    <div id="public-voting-area">
+                        <p>Puoi esprimere fino a <strong>3 preferenze</strong>.</p>
+                        <div id="contestants-container"></div>
+                        <button id="vote-btn" class="btn btn-primary">Vota</button>
+                    </div>
+                    <button id="logout-btn-public" class="btn btn-secondary">Esci</button>
                 </div>
-
-                <div class="admin-section">
-                    <h3>Risultati Votazioni</h3>
-                    <p>Seleziona una serata per vedere i risultati aggregati in tempo reale.</p>
-                    <ul id="results-list" class="admin-list"></ul>
-                </div>
-                 <button id="admin-logout-btn" class="logout-button">Esci dal pannello</button>
             </div>
-
         </main>
-        
-        <footer id="footer-admin-link">
-             <button id="show-admin-login-btn" class="admin-login-button">Sei un admin?</button>
-        </footer>
-
     </div>
 
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+<script>
+document.addEventListener('DOMContentLoaded', () => {
 
-        // --- CONFIGURAZIONE ---
-        const SUPABASE_URL = 'https://piizdbesekycwotshcmk.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpaXpkYmVzZWt5Y3dvdHNoY21rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4NjAwOTYsImV4cCI6MjA3MTQzNjA5Nn0.tPYSxgxE37VkzpMIbFzEHRc80CFspS_Wb0umUboWl-4';
-        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // ---------- 1. CONFIGURAZIONE: INSERISCI I TUOI DATI QUI ----------
+    
+    const SUPABASE_URL = 'INCOLLA_QUI_IL_TUO_URL_SUPABASE';
+    const SUPABASE_ANON_KEY = 'INCOLLA_QUI_LA_TUA_ANON_KEY_SUPABASE';
+    const ADMIN_EMAIL = 'INSERISCI_QUI_LA_TUA_EMAIL_DA_AMMINISTRATORE'; // IMPORTANTE!
 
-        // --- DOM ELEMENTS ---
-        const app = document.getElementById('app');
-        const loader = document.getElementById('loader');
-        const views = document.querySelectorAll('.view');
-        const authView = document.getElementById('auth-view');
-        const votingView = document.getElementById('voting-view');
-        const thankYouView = document.getElementById('thank-you-view');
-        const alreadyVotedView = document.getElementById('already-voted-view');
-        const noActiveNightView = document.getElementById('no-active-night-view');
-        const adminLoginView = document.getElementById('admin-login-view');
-        const adminDashboardView = document.getElementById('admin-dashboard-view');
-        
-        let activeNight = null;
-        let selectedArtists = new Set();
-        const MAX_SELECTIONS = 3;
+    // ---------- FINE CONFIGURAZIONE ----------
 
-        // --- UTILITY FUNCTIONS ---
-        const showView = (viewId) => {
-            views.forEach(view => view.classList.remove('active'));
-            document.getElementById(viewId).classList.add('active');
-            window.scrollTo(0, 0);
-        };
-        const showLoader = () => loader.classList.remove('hidden');
-        const hideLoader = () => loader.classList.add('hidden');
 
-        // --- AUTHENTICATION ---
-        document.getElementById('auth-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            showLoader();
-            const email = document.getElementById('email-input').value;
-            const { error } = await supabase.auth.signInWithOtp({ email });
-            hideLoader();
+    // --- Inizializzazione di Supabase ---
+    const { createClient } = window.supabase;
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-            const authMessage = document.getElementById('auth-message');
-            if (error) {
-                authMessage.textContent = `Errore: ${error.message}`;
-                authMessage.className = 'message error';
-            } else {
-                authMessage.textContent = 'Controlla la tua email! Ti abbiamo inviato un link per accedere.';
-                authMessage.className = 'message success';
-            }
-            authMessage.classList.remove('hidden');
-        });
+    // --- Elementi del DOM ---
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const screens = {
+        login: document.getElementById('login-screen'),
+        main: document.getElementById('main-screen')
+    };
+    const adminView = document.getElementById('admin-view');
+    const publicView = document.getElementById('public-view');
+    const loginBtn = document.getElementById('login-btn');
+    const logoutButtons = document.querySelectorAll('#logout-btn-admin, #logout-btn-public');
+    const voteBtn = document.getElementById('vote-btn');
+    const loginMessage = document.getElementById('login-message');
+    
+    // --- Funzioni UI ---
+    const showLoading = (isLoading) => {
+        loadingSpinner.style.display = isLoading ? 'block' : 'none';
+    };
+    
+    const navigateTo = (screenId) => {
+        Object.values(screens).forEach(s => s.classList.remove('active'));
+        if (screens[screenId]) screens[screenId].classList.add('active');
+    };
 
-        const handleLogout = async () => {
-            showLoader();
-            await supabase.auth.signOut();
-            activeNight = null;
-            selectedArtists.clear();
-            showView('auth-view');
-            hideLoader();
-        };
-        
-        // --- USER VOTING FLOW ---
-        const loadVotingPage = async (user) => {
-            showLoader();
-            const { data: night, error: nightError } = await supabase
-                .from('nights')
-                .select('*')
-                .eq('is_open', true)
-                .single();
+    const showLoginMessage = (message, isError = false) => {
+        loginMessage.textContent = message;
+        loginMessage.style.color = isError ? 'var(--danger-color)' : 'var(--success-color)';
+    };
 
-            if (nightError || !night) {
-                activeNight = null;
-                showView('no-active-night-view');
-                hideLoader();
-                return;
-            }
-            activeNight = night;
-            document.getElementById('night-name').textContent = `Votazione per: ${activeNight.name}`;
+    // --- Funzione Principale di Login ---
+    const handleLogin = async () => {
+        const email = document.getElementById('user-email').value;
+        if (!email) {
+            showLoginMessage('Per favore, inserisci un\'email.', true);
+            return;
+        }
 
-            const { data: existingVote, error: voteError } = await supabase
-                .from('votes')
-                .select('id')
-                .eq('user_id', user.id)
-                .eq('night_id', activeNight.id)
-                .single();
+        showLoading(true);
+        loginBtn.disabled = true;
 
-            if (existingVote) {
-                showView('already-voted-view');
-                hideLoader();
-                return;
-            }
-
-            const { data: artists, error: artistsError } = await supabase
-                .from('participants')
-                .select('*')
-                .order('full_name');
-
-            if (artistsError) {
-                alert(`Errore nel caricamento degli artisti: ${artistsError.message}`);
-                hideLoader();
-                return;
-            }
-
-            const artistsList = document.getElementById('artists-list');
-            artistsList.innerHTML = '';
-            artists.forEach(artist => {
-                const li = document.createElement('li');
-                li.textContent = artist.full_name;
-                li.dataset.id = artist.id;
-                li.addEventListener('click', () => toggleArtistSelection(li));
-                artistsList.appendChild(li);
+        try {
+            const { error } = await supabase.functions.invoke('magic-link', {
+                body: { email }
             });
+
+            if (error) throw error;
             
-            updateVoteCounter();
-            showView('voting-view');
-            hideLoader();
-        };
+            showLoginMessage('Link di accesso inviato! Controlla la tua casella di posta (anche lo spam).');
+        } catch (error) {
+            console.error("Errore durante la chiamata alla function:", error);
+            showLoginMessage('Si è verificato un errore. Riprova.', true);
+        } finally {
+            showLoading(false);
+            loginBtn.disabled = false;
+        }
+    };
 
-        const toggleArtistSelection = (liElement) => {
-            const artistId = liElement.dataset.id;
-            if (selectedArtists.has(artistId)) {
-                selectedArtists.delete(artistId);
-                liElement.classList.remove('selected');
+    loginBtn.addEventListener('click', handleLogin);
+
+    // --- Gestione Logout ---
+    logoutButtons.forEach(btn => {
+        btn.addEventListener('click', async () => {
+            showLoading(true);
+            await supabase.auth.signOut();
+            showLoading(false);
+            // onAuthStateChange gestirà il cambio di schermata
+        });
+    });
+
+    // --- Gestione della Sessione Utente (La parte più importante) ---
+    supabase.auth.onAuthStateChange(async (event, session) => {
+        showLoading(true);
+        if (session && session.user) {
+            // L'utente è loggato
+            const user = session.user;
+            
+            // Controlla se è un admin
+            if (user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                document.getElementById('user-email-display-admin').textContent = user.email;
+                adminView.style.display = 'block';
+                publicView.style.display = 'none';
             } else {
-                if (selectedArtists.size < MAX_SELECTIONS) {
-                    selectedArtists.add(artistId);
-                    liElement.classList.add('selected');
-                } else {
-                    alert(`Puoi selezionare un massimo di ${MAX_SELECTIONS} artisti.`);
-                }
+                // È un utente del pubblico
+                document.getElementById('user-email-display-public').textContent = user.email;
+                adminView.style.display = 'none';
+                publicView.style.display = 'block';
+                // Qui andrà la logica per mostrare la votazione...
             }
-            updateVoteCounter();
-        };
-
-        const updateVoteCounter = () => {
-            const count = selectedArtists.size;
-            document.getElementById('selection-count').textContent = count;
-            document.getElementById('submit-vote-btn').disabled = (count !== MAX_SELECTIONS);
-        };
-
-        document.getElementById('submit-vote-btn').addEventListener('click', async () => {
-            if (selectedArtists.size !== MAX_SELECTIONS) return;
-
-            showLoader();
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user || !activeNight) {
-                hideLoader();
-                alert("Sessione non valida o serata non attiva.");
-                return;
-            }
-
-            const { data: voteData, error: voteInsertError } = await supabase
-                .from('votes')
-                .insert({ night_id: activeNight.id, user_id: user.id })
-                .select('id')
-                .single();
-
-            if (voteInsertError) {
-                hideLoader();
-                if (voteInsertError.code === '23505') { 
-                     showView('already-voted-view');
-                } else {
-                    alert(`Errore nell'invio del voto: ${voteInsertError.message}`);
-                }
-                return;
-            }
-
-            const voteChoices = Array.from(selectedArtists).map((participantId, index) => ({
-                vote_id: voteData.id,
-                participant_id: participantId,
-                rank: index + 1
-            }));
-
-            const { error: choicesInsertError } = await supabase
-                .from('vote_choices')
-                .insert(voteChoices);
-
-            if (choicesInsertError) {
-                hideLoader();
-                alert(`Errore nel salvataggio delle preferenze: ${choicesInsertError.message}`);
-                await supabase.from('votes').delete().eq('id', voteData.id);
-                return;
-            }
-
-            hideLoader();
-            showView('thank-you-view');
-        });
-
-        // --- ADMIN FLOW ---
-        const ADMIN_SESSION_KEY = 'supabase.admin-code';
-
-        document.getElementById('show-admin-login-btn').addEventListener('click', () => showView('admin-login-view'));
-        
-        document.getElementById('back-to-user-view').addEventListener('click', () => checkSession());
-        
-        // --- FUNZIONE DI LOGIN ADMIN CORRETTA ---
-        document.getElementById('admin-login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            showLoader();
-            const code = document.getElementById('admin-code-input').value;
-            const adminLoginError = document.getElementById('admin-login-error');
-            adminLoginError.classList.add('hidden');
-
-            const { data, error } = await supabase
-                .from('admins')
-                .select('code')
-                .eq('code', code);
-
-            hideLoader();
-
-            if (error) {
-                console.error('Errore Supabase:', error);
-                adminLoginError.textContent = 'Errore del database. Controlla la console per dettagli.';
-                adminLoginError.classList.remove('hidden');
-                return;
-            }
-
-            if (data && data.length === 1) {
-                // Successo: trovata una corrispondenza esatta.
-                sessionStorage.setItem(ADMIN_SESSION_KEY, code);
-                loadAdminDashboard();
-            } else if (data && data.length > 1) {
-                // Errore: Trovati più codici identici.
-                adminLoginError.textContent = 'ERRORE: Ci sono codici admin duplicati nel database. Elimina i doppioni.';
-                adminLoginError.classList.remove('hidden');
-            } else {
-                // Fallimento: Nessuna corrispondenza trovata.
-                adminLoginError.textContent = 'Codice errato.';
-                adminLoginError.classList.remove('hidden');
-            }
-        });
-
-        const loadAdminDashboard = async () => {
-            showLoader();
-            showView('admin-dashboard-view');
-            await Promise.all([loadAdminNights(), loadAdminArtists()]);
-            await loadAdminResults();
-            hideLoader();
-        };
-        
-        // Nights Management
-        const loadAdminNights = async () => {
-            const { data: nights, error } = await supabase.from('nights').select('*').order('created_at');
-            const list = document.getElementById('nights-list');
-            list.innerHTML = '';
-            if (error) { list.innerHTML = `<li>Errore: ${error.message}</li>`; return; }
-
-            nights.forEach(night => {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <span>${night.name} ${night.is_open ? '<strong>(APERTA)</strong>' : ''}</span>
-                    <div class="admin-actions">
-                        ${!night.is_open ? `<button class="btn-open" data-id="${night.id}">Apri</button>` : `<button class="btn-close" data-id="${night.id}">Chiudi</button>`}
-                    </div>
-                `;
-                list.appendChild(li);
-            });
-        };
-
-        document.getElementById('add-night-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('new-night-name').value;
-            showLoader();
-            const { error } = await supabase.from('nights').insert({ name });
-            if (error) alert(error.message);
-            else {
-                document.getElementById('new-night-name').value = '';
-                await loadAdminNights();
-            }
-            hideLoader();
-        });
-
-        document.getElementById('nights-list').addEventListener('click', async (e) => {
-            const target = e.target;
-            const id = target.dataset.id;
-            if (!id) return;
-
-            showLoader();
-            if (target.classList.contains('btn-open')) {
-                const { error } = await supabase.rpc('open_night', { night_id_to_open: id });
-                if (error) alert(`Errore: ${error.message}`);
-            } else if (target.classList.contains('btn-close')) {
-                const { error } = await supabase.from('nights').update({ is_open: false }).eq('id', id);
-                if (error) alert(`Errore: ${error.message}`);
-            }
-            await loadAdminDashboard();
-            hideLoader();
-        });
-
-        // Artists Management
-        const loadAdminArtists = async () => {
-            const { data: artists, error } = await supabase.from('participants').select('*').order('full_name');
-            const list = document.getElementById('artists-admin-list');
-            list.innerHTML = '';
-            if (error) { list.innerHTML = `<li>Errore: ${error.message}</li>`; return; }
-
-            artists.forEach(artist => {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <span>${artist.full_name}</span>
-                    <div class="admin-actions">
-                        <button class="btn-delete" data-id="${artist.id}">Elimina</button>
-                    </div>
-                `;
-                list.appendChild(li);
-            });
-        };
-
-        document.getElementById('add-artist-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('new-artist-name').value;
-            showLoader();
-            const { error } = await supabase.from('participants').insert({ full_name: name });
-            if (error) alert(error.message);
-            else {
-                document.getElementById('new-artist-name').value = '';
-                await loadAdminArtists();
-            }
-            hideLoader();
-        });
-
-        document.getElementById('artists-admin-list').addEventListener('click', async (e) => {
-            if (e.target.classList.contains('btn-delete')) {
-                if (!confirm("Sei sicuro di voler eliminare questo artista?")) return;
-                const id = e.target.dataset.id;
-                showLoader();
-                const { error } = await supabase.from('participants').delete().eq('id', id);
-                if (error) alert(error.message);
-                await loadAdminArtists();
-                hideLoader();
-            }
-        });
-
-        // Results
-        const loadAdminResults = async () => {
-             const { data: results, error } = await supabase.rpc('get_vote_counts');
-             const list = document.getElementById('results-list');
-             list.innerHTML = '';
-             if (error) { list.innerHTML = `<li>Errore: ${error.message}</li>`; return; }
-
-             if (!results || results.length === 0) {
-                 list.innerHTML = '<li>Nessun voto registrato.</li>';
-                 return;
-             }
-             
-            const resultsByNight = results.reduce((acc, item) => {
-                (acc[item.night_name] = acc[item.night_name] || []).push(item);
-                return acc;
-            }, {});
-
-            for (const nightName in resultsByNight) {
-                const li = document.createElement('li');
-                let artistHtml = resultsByNight[nightName]
-                    .sort((a, b) => b.vote_count - a.vote_count)
-                    .map(r => `<div>${r.participant_name}: <strong>${r.vote_count} voti</strong></div>`)
-                    .join('');
-
-                li.innerHTML = `
-                    <div>
-                        <h3>${nightName}</h3>
-                        ${artistHtml}
-                    </div>
-                `;
-                list.appendChild(li);
-            }
-        };
-        
-        const adminLogout = () => {
-            sessionStorage.removeItem(ADMIN_SESSION_KEY);
-            checkSession();
-        };
-
-        // --- APP INITIALIZATION ---
-        const checkSession = async () => {
-            if (sessionStorage.getItem(ADMIN_SESSION_KEY)) {
-                const code = sessionStorage.getItem(ADMIN_SESSION_KEY);
-                const { data } = await supabase.from('admins').select('code').eq('code', code).single();
-                if (data) {
-                    loadAdminDashboard();
-                    return;
-                } else {
-                    sessionStorage.removeItem(ADMIN_SESSION_KEY);
-                }
-            }
-
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                loadVotingPage(session.user);
-            } else {
-                showView('auth-view');
-            }
-        };
-
-        // Event listeners
-        document.getElementById('logout-btn').addEventListener('click', handleLogout);
-        document.getElementById('logout-already-voted-btn').addEventListener('click', handleLogout);
-        document.getElementById('logout-no-night-btn').addEventListener('click', handleLogout);
-        document.getElementById('admin-logout-btn').addEventListener('click', adminLogout);
-        document.getElementById('festival-logo').addEventListener('click', () => {
-             sessionStorage.removeItem(ADMIN_SESSION_KEY);
-             handleLogout();
-        });
-
-        // Start the app
-        checkSession();
-
-    </script>
+            navigateTo('main');
+        } else {
+            // L'utente non è loggato
+            navigateTo('login');
+        }
+        showLoading(false);
+    });
+});
+</script>
 </body>
 </html>
