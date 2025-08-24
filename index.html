@@ -171,10 +171,18 @@
             showLoading(true);
             loginBtn.disabled = true;
             try {
-                const { error } = await supabase.functions.invoke('magic-link', { body: { email } });
-                if (error) throw error;
+                // Usa il metodo standard di Supabase per inviare il link di accesso
+                const { error } = await supabase.auth.signInWithOtp({
+                    email: email,
+                    options: {
+                        // Indica a Supabase dove reindirizzare l'utente dopo il clic sul link
+                        emailRedirectTo: window.location.href,
+                    }
+                });
+                if (error) throw error; // Se c'è un errore, lancialo per il blocco catch
                 showLoginMessage('Link di accesso inviato! Controlla la tua casella di posta (anche lo spam).');
             } catch (error) {
+                console.error('Errore durante l\'invio del link:', error); // Logga l'errore per il debug
                 showLoginMessage('Si è verificato un errore. Riprova.', true);
             } finally {
                 showLoading(false);
