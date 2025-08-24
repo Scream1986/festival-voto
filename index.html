@@ -45,13 +45,13 @@
         <main>
             <div id="login-screen" class="screen">
                 <h2>Benvenuto al Contest</h2>
-                <p style="text-align: center; color: #666;">Inserisci la tua email per ricevere un link di accesso e votare.</p>
+                <p style="text-align: center; color: #666;">Inserisci la tua Email per ricevere un link di accesso, oppure usa il tuo Codice Admin.</p>
                 <div id="login-message"></div>
                 <div class="form-group">
-                    <label for="user-email">La tua Email</label>
-                    <input type="email" id="user-email" placeholder="mario.rossi@email.com" autocomplete="off">
+                    <label for="user-input">La tua Email o Codice Admin</label>
+                    <input type="text" id="user-input" placeholder="email@example.com oppure il codice" autocomplete="off">
                 </div>
-                <button id="login-btn" class="btn btn-primary">Ricevi Link per Votare</button>
+                <button id="login-btn" class="btn btn-primary">Accedi o Ricevi Link</button>
             </div>
 
             <div id="main-screen" class="screen">
@@ -96,10 +96,11 @@
     </div>
 
 <script>
-    // ---------- 1. CONFIGURAZIONE AUTOMATICA ----------
+    // ---------- 1. CONFIGURAZIONE ----------
     const SUPABASE_URL = 'https://funebgzoioakkuflbeln.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1bmViZ3pvaW9ha2t1ZmxiZWxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5NTQwMzcsImV4cCI6MjA3MTUzMDAzN30.0CYThDbWz5FTP-vTikitX_4oBjxD2lHQXprH7cJj-9M';
     const ADMIN_EMAIL = 'robtolu@hotmail.com';
+    const ADMIN_CODE = 'Rob025490';
     // ---------- FINE CONFIGURAZIONE ----------
 
     const { createClient } = window.supabase;
@@ -139,15 +140,13 @@
         const showLoginMessage = (message, isError = false) => {
             loginMessage.textContent = message;
             loginMessage.style.color = isError ? 'var(--danger-color)' : 'var(--success-color)';
+            loginMessage.style.display = message ? 'block' : 'none';
         };
 
         // --- Funzioni Dati ---
         const renderContestantList = async () => {
             const { data, error } = await supabase.from('cantanti').select('nome').order('nome');
-            if (error) {
-                alert('Errore nel caricamento dei cantanti.');
-                return;
-            }
+            if (error) { alert('Errore nel caricamento dei cantanti.'); return; }
             let html = '<ul class="contestant-list">';
             data.forEach((c, index) => {
                 html += `<li class="contestant-item"><input type="checkbox" id="contestant-${index}" value="${c.nome}"><label for="contestant-${index}">${c.nome}</label></li>`;
@@ -164,38 +163,52 @@
             });
         };
 
-        // --- Gestione Login/Logout/Sessione ---
+        // --- NUOVA GESTIONE LOGIN INTELLIGENTE ---
         const handleLogin = async () => {
-            const email = document.getElementById('user-email').value;
-            if (!email) { showLoginMessage('Per favore, inserisci un\'email.', true); return; }
+            const userInput = document.getElementById('user-input').value.trim();
+            if (!userInput) { showLoginMessage('Per favore, inserisci un\'email o il codice admin.', true); return; }
+            
             showLoading(true);
             loginBtn.disabled = true;
+            showLoginMessage(''); // Pulisce il messaggio precedente
+
             try {
-                // Usa il metodo standard di Supabase per inviare il link di accesso
-                const { error } = await supabase.auth.signInWithOtp({
-                    email: email,
-                    options: {
-                        // Indica a Supabase dove reindirizzare l'utente dopo il clic sul link
-                        emailRedirectTo: window.location.href,
-                    }
-                });
-                if (error) throw error; // Se c'è un errore, lancialo per il blocco catch
-                showLoginMessage('Link di accesso inviato! Controlla la tua casella di posta (anche lo spam).');
+                // Caso 1: L'utente ha inserito il Codice Admin
+                if (userInput === ADMIN_CODE) {
+                    const { error } = await supabase.auth.signInWithPassword({
+                        email: ADMIN_EMAIL,
+                        password: ADMIN_CODE,
+                    });
+                    if (error) throw new Error('Codice Admin o configurazione errata.');
+                    // Se il login va a buon fine, onAuthStateChange gestirà la navigazione
+                
+                // Caso 2: L'utente ha inserito un'email (o altro)
+                } else {
+                    const { error } = await supabase.auth.signInWithOtp({
+                        email: userInput,
+                        options: {
+                            emailRedirectTo: window.location.href,
+                        }
+                    });
+                    if (error) throw new Error('Email non valida o errore del server.');
+                    showLoginMessage('Link di accesso inviato! Controlla la tua casella di posta (anche lo spam).');
+                }
             } catch (error) {
-                console.error('Errore durante l\'invio del link:', error); // Logga l'errore per il debug
-                showLoginMessage('Si è verificato un errore. Riprova.', true);
+                console.error('Errore durante il login:', error);
+                showLoginMessage(error.message, true);
             } finally {
                 showLoading(false);
                 loginBtn.disabled = false;
             }
         };
-
+        
         loginBtn.addEventListener('click', handleLogin);
 
         logoutButtons.forEach(btn => btn.addEventListener('click', async () => {
             showLoading(true);
             await supabase.auth.signOut();
             showLoading(false);
+            // onAuthStateChange gestirà la navigazione alla pagina di login
         }));
 
         supabase.auth.onAuthStateChange(async (event, session) => {
@@ -205,6 +218,7 @@
                 if (user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
                     adminView.style.display = 'block';
                     publicView.style.display = 'none';
+                    navigateTo('main');
                 } else {
                     adminView.style.display = 'none';
                     publicView.style.display = 'block';
@@ -218,8 +232,8 @@
                         publicVotingArea.style.display = 'block';
                         renderContestantList();
                     }
+                    navigateTo('main');
                 }
-                navigateTo('main');
             } else {
                 navigateTo('login');
             }
