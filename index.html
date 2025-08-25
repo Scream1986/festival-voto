@@ -40,7 +40,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <div id="loading-spinner" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.8); z-index: 9999; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 1.2rem;">Caricamento...</div>
+    <div id="loading-spinner" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.8); z-index: 9999; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 1.2rem;">Caricamento...</div>
 
     <div class="app-container">
         <header id="app-header">
@@ -171,7 +171,6 @@
             loginBtn.disabled = true;
             showLoginMessage('');
 
-            // Caso 1: L'utente è l'ADMIN (usa il codice come password)
             if (inputValue === ADMIN_CODE) {
                 const { error } = await supabase.auth.signInWithPassword({
                     email: ADMIN_EMAIL,
@@ -180,9 +179,6 @@
                 if (error) {
                     showLoginMessage('Codice Admin non valido.', true);
                 }
-                // onAuthStateChange gestirà la navigazione
-            
-            // Caso 2: L'utente sta verificando il codice OTP ricevuto via email
             } else if (isWaitingForCode) {
                 const { data, error } = await supabase.auth.verifyOtp({
                     email: userEmailForVerification,
@@ -193,9 +189,6 @@
                     showLoginMessage('Codice non valido o scaduto. Reinserisci la tua email.', true);
                     resetLoginView();
                 }
-                // onAuthStateChange gestirà la navigazione
-                
-            // Caso 3: L'utente inserisce l'EMAIL per ricevere il codice
             } else {
                 const { error } = await supabase.auth.signInWithOtp({
                     email: inputValue
@@ -221,39 +214,42 @@
         logoutButtons.forEach(btn => btn.addEventListener('click', async () => {
             showLoading(true);
             await supabase.auth.signOut();
-            resetLoginView(); // Assicura che la schermata di login torni allo stato iniziale
+            resetLoginView();
             showLoading(false);
         }));
 
         // --- GESTIONE SESSIONE UTENTE ---
         supabase.auth.onAuthStateChange(async (event, session) => {
             showLoading(true);
-            if (session && session.user) {
-                const user = session.user;
-                // Controlla se l'utente è ADMIN tramite l'email
-                if (user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                    adminView.style.display = 'block';
-                    publicView.style.display = 'none';
-                    await renderAdminControls();
-                    navigateTo('main');
-                } else { // Utente PUBBLICO
-                    adminView.style.display = 'none';
-                    publicView.style.display = 'block';
-                    await renderPublicVotingView(user);
-                    navigateTo('main');
+            try {
+                if (session && session.user) {
+                    const user = session.user;
+                    if (user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                        adminView.style.display = 'block';
+                        publicView.style.display = 'none';
+                        await renderAdminControls();
+                        navigateTo('main');
+                    } else {
+                        adminView.style.display = 'none';
+                        publicView.style.display = 'block';
+                        await renderPublicVotingView(user);
+                        navigateTo('main');
+                    }
+                } else {
+                    navigateTo('login');
+                    resetLoginView();
                 }
-            } else {
-                navigateTo('login');
-                resetLoginView();
+            } catch (error) {
+                console.error("Errore critico durante l'avvio:", error);
+                alert("Si è verificato un errore critico. Controlla la console per i dettagli (F12).");
+            } finally {
+                showLoading(false);
             }
-            showLoading(false);
         });
         
         // --- VISTA PUBBLICO ---
         const renderPublicVotingView = async (user) => {
             const publicVotingArea = document.getElementById('public-voting-area');
-
-            // 1. Determina quale serata è attiva
             const { data: serate, error: serateError } = await supabase.from('serate_status').select('*');
             if (serateError || !serate) {
                 publicVotingArea.innerHTML = `<p style="text-align:center; font-weight:bold; color:red;">Errore di configurazione. Contattare l'amministratore.</p>`;
@@ -268,14 +264,12 @@
                  return;
             }
 
-            // 2. Controlla se la serata attiva è aperta per le votazioni
             const serataInfo = serate.find(s => s.id === serataCorrenteId);
             if (!serataInfo || !serataInfo.is_open) {
                 publicVotingArea.innerHTML = `<p style="text-align:center; font-weight:bold;">Le votazioni per la ${serataCorrenteId.replace('_', ' ')} sono chiuse.</p>`;
                 return;
             }
             
-            // 3. Controlla se l'utente ha già votato per questa serata
             const { data: votante, error: votanteError } = await supabase.from('votanti').select(`voti_${serataCorrenteId}`).eq('user_id', user.id).single();
 
             if (votante && votante[`voti_${serataCorrenteId}`] && votante[`voti_${serataCorrenteId}`].length > 0) {
@@ -290,7 +284,7 @@
             const { data, error } = await supabase.from('cantanti').select('nome').order('nome');
             if (error) { 
                 alert('Errore nel caricamento dei cantanti.'); 
-                console.error(error); // Log dell'errore per il debug
+                console.error(error);
                 return; 
             }
             let html = '<ul class="contestant-list">';
@@ -353,7 +347,7 @@
                         <span>
                             ${serata.id.replace('_', ' ')}: 
                             <span class="status-badge ${isOpen ? 'status-open' : 'status-closed'}">${isOpen ? 'Aperta' : 'Chiusa'}</span>
-                            ${isActive ? '<strong> (Attiva per il pubblico)</strong>' : ''}
+                            ${isActive ? '<strong> (Attiva)</strong>' : ''}
                         </span>
                         <div>
                             <button class="btn btn-sm btn-secondary" data-id="${serata.id}" data-action="toggle-open" style="margin-right: 5px;">${isOpen ? 'Chiudi' : 'Apri'}</button>
@@ -374,12 +368,9 @@
             showLoading(true);
             if (action === 'toggle-open') {
                 const { data: currentState } = await supabase.from('serate_status').select('is_open').eq('id', id).single();
-                const { error } = await supabase.from('serate_status').update({ is_open: !currentState.is_open }).eq('id', id);
-                if (error) alert('Errore durante l'aggiornamento.');
+                await supabase.from('serate_status').update({ is_open: !currentState.is_open }).eq('id', id);
             } else if (action === 'set-active') {
-                // Rendi tutte le serate non attive
                 await supabase.from('serate_status').update({ is_active: false }).neq('id', '');
-                // Rendi attiva solo quella selezionata
                 await supabase.from('serate_status').update({ is_active: true }).eq('id', id);
             }
             await renderAdminControls();
@@ -387,7 +378,6 @@
         });
         
         const renderAdminContestantList = async () => {
-            // FIX: Questo è il punto che probabilmente falliva a causa della sicurezza (RLS)
             const { data, error } = await supabase.from('cantanti').select('nome').order('nome');
             if (error) { 
                 alert('Errore nel caricamento dei cantanti. Controlla le policy RLS su Supabase.'); 
@@ -469,16 +459,12 @@
                     }
                 });
             }
-
             showLoading(false);
             alert(resultsMessage);
         };
         
         generalRankingBtn.addEventListener('click', () => showResults(false));
         viewResultsBtn.addEventListener('click', () => showResults(true));
-        
-        // --- Avvio iniziale ---
-        showLoading(false); // Nascondi il loader all'avvio
     });
 </script>
 </body>
