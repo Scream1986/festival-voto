@@ -45,13 +45,13 @@
         <main>
             <div id="login-screen" class="screen">
                 <h2>Benvenuto al Contest</h2>
-                <p style="text-align: center; color: #666;">Inserisci la tua Email per ricevere un link di accesso, oppure usa il tuo Codice Admin.</p>
+                <p style="text-align: center; color: #666;">Inserisci la tua Email per ricevere un codice di accesso, oppure usa il tuo Codice Admin.</p>
                 <div id="login-message"></div>
                 <div class="form-group">
                     <label for="user-input">La tua Email o Codice Admin</label>
                     <input type="text" id="user-input" placeholder="email@example.com oppure il codice" autocomplete="off">
                 </div>
-                <button id="login-btn" class="btn btn-primary">Accedi o Ricevi Link</button>
+                <button id="login-btn" class="btn btn-primary">Accedi o Ricevi Codice</button>
             </div>
 
             <div id="main-screen" class="screen">
@@ -117,6 +117,8 @@
         const adminView = document.getElementById('admin-view');
         const publicView = document.getElementById('public-view');
         const loginBtn = document.getElementById('login-btn');
+        const userInput = document.getElementById('user-input');
+        const userInputLabel = document.querySelector('label[for="user-input"]');
         const logoutButtons = document.querySelectorAll('#logout-btn-admin, #logout-btn-public');
         const voteBtn = document.getElementById('vote-btn');
         const loginMessage = document.getElementById('login-message');
@@ -129,8 +131,10 @@
         const generalRankingBtn = document.getElementById('general-ranking-btn');
         const viewResultsBtn = document.getElementById('view-results-btn');
         
-        let activeEvent = 'serata_1'; // Stato locale per la serata attiva
-        
+        let activeEvent = 'serata_1';
+        let userEmailForVerification = ''; // Variabile per salvare l'email dell'utente
+        let isWaitingForCode = false; // Stato per sapere se stiamo aspettando un codice
+
         // --- Funzioni UI ---
         const showLoading = (isLoading) => { loadingSpinner.style.display = isLoading ? 'flex' : 'none'; };
         const navigateTo = (screenId) => {
@@ -142,8 +146,115 @@
             loginMessage.style.color = isError ? 'var(--danger-color)' : 'var(--success-color)';
             loginMessage.style.display = message ? 'block' : 'none';
         };
+        const resetLoginView = () => {
+            isWaitingForCode = false;
+            userEmailForVerification = '';
+            userInput.value = '';
+            userInputLabel.textContent = 'La tua Email o Codice Admin';
+            userInput.placeholder = 'email@example.com oppure il codice';
+            loginBtn.textContent = 'Accedi o Ricevi Codice';
+            showLoginMessage('');
+        };
 
-        // --- Funzioni Dati ---
+        // --- NUOVA LOGICA DI LOGIN A CODICE ---
+        const handleLogin = async () => {
+            const inputValue = userInput.value.trim();
+            if (!inputValue) {
+                showLoginMessage('Il campo non può essere vuoto.', true);
+                return;
+            }
+
+            showLoading(true);
+            loginBtn.disabled = true;
+            showLoginMessage('');
+
+            // Caso 1: L'utente è l'ADMIN
+            if (inputValue === ADMIN_CODE) {
+                const { error } = await supabase.auth.signInWithPassword({
+                    email: ADMIN_EMAIL,
+                    password: ADMIN_CODE,
+                });
+                if (error) {
+                    showLoginMessage('Codice Admin errato o problema di configurazione.', true);
+                }
+                // Se il login va a buon fine, onAuthStateChange gestirà la navigazione
+            
+            // Caso 2: L'utente ha inserito il CODICE ricevuto via email
+            } else if (isWaitingForCode) {
+                const { data, error } = await supabase.auth.verifyOtp({
+                    email: userEmailForVerification,
+                    token: inputValue,
+                    type: 'email'
+                });
+                if (error) {
+                    showLoginMessage('Codice non valido o scaduto. Riprova.', true);
+                    resetLoginView(); // Resetta la vista per permettere di ricominciare
+                }
+                // Se il codice è valido, onAuthStateChange gestirà la navigazione
+                
+            // Caso 3: L'utente ha inserito l'EMAIL per ricevere il codice
+            } else {
+                const { error } = await supabase.auth.signInWithOtp({
+                    email: inputValue
+                });
+
+                if (error) {
+                    showLoginMessage('Email non valida o errore del server.', true);
+                } else {
+                    isWaitingForCode = true;
+                    userEmailForVerification = inputValue; // Salviamo l'email
+                    showLoginMessage('Codice inviato! Controlla la tua casella di posta (anche lo spam).');
+                    // Aggiorniamo la UI per chiedere il codice
+                    userInputLabel.textContent = `Codice inviato a ${userEmailForVerification}`;
+                    userInput.placeholder = 'Inserisci il codice che hai ricevuto';
+                    userInput.value = '';
+                    loginBtn.textContent = 'Verifica Codice';
+                }
+            }
+
+            showLoading(false);
+            loginBtn.disabled = false;
+        };
+        
+        loginBtn.addEventListener('click', handleLogin);
+
+        logoutButtons.forEach(btn => btn.addEventListener('click', async () => {
+            showLoading(true);
+            await supabase.auth.signOut();
+            resetLoginView();
+            showLoading(false);
+        }));
+
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            if (session && session.user) {
+                showLoading(true);
+                const user = session.user;
+                if (user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                    adminView.style.display = 'block';
+                    publicView.style.display = 'none';
+                    navigateTo('main');
+                } else {
+                    adminView.style.display = 'none';
+                    publicView.style.display = 'block';
+                    
+                    const { data, error } = await supabase.from('votanti').select(`voti_${activeEvent}`).eq('user_id', user.id).single();
+                    const publicVotingArea = document.getElementById('public-voting-area');
+
+                    if (data && data[`voti_${activeEvent}`] && data[`voti_${activeEvent}`].length > 0) {
+                        publicVotingArea.innerHTML = `<p style="text-align:center; font-weight:bold;">Grazie per aver votato per la ${activeEvent.replace('_', ' ')}!</p>`;
+                    } else {
+                        publicVotingArea.style.display = 'block';
+                        await renderContestantList();
+                    }
+                    navigateTo('main');
+                }
+                showLoading(false);
+            } else {
+                navigateTo('login');
+                resetLoginView();
+            }
+        });
+        
         const renderContestantList = async () => {
             const { data, error } = await supabase.from('cantanti').select('nome').order('nome');
             if (error) { alert('Errore nel caricamento dei cantanti.'); return; }
@@ -163,84 +274,6 @@
             });
         };
 
-        // --- NUOVA GESTIONE LOGIN INTELLIGENTE ---
-        const handleLogin = async () => {
-            const userInput = document.getElementById('user-input').value.trim();
-            if (!userInput) { showLoginMessage('Per favore, inserisci un\'email o il codice admin.', true); return; }
-            
-            showLoading(true);
-            loginBtn.disabled = true;
-            showLoginMessage(''); // Pulisce il messaggio precedente
-
-            try {
-                // Caso 1: L'utente ha inserito il Codice Admin
-                if (userInput === ADMIN_CODE) {
-                    const { error } = await supabase.auth.signInWithPassword({
-                        email: ADMIN_EMAIL,
-                        password: ADMIN_CODE,
-                    });
-                    if (error) throw new Error('Codice Admin o configurazione errata.');
-                    // Se il login va a buon fine, onAuthStateChange gestirà la navigazione
-                
-                // Caso 2: L'utente ha inserito un'email (o altro)
-                } else {
-                    const { error } = await supabase.auth.signInWithOtp({
-                        email: userInput,
-                        options: {
-                            emailRedirectTo: window.location.href,
-                        }
-                    });
-                    if (error) throw new Error('Email non valida o errore del server.');
-                    showLoginMessage('Link di accesso inviato! Controlla la tua casella di posta (anche lo spam).');
-                }
-            } catch (error) {
-                console.error('Errore durante il login:', error);
-                showLoginMessage(error.message, true);
-            } finally {
-                showLoading(false);
-                loginBtn.disabled = false;
-            }
-        };
-        
-        loginBtn.addEventListener('click', handleLogin);
-
-        logoutButtons.forEach(btn => btn.addEventListener('click', async () => {
-            showLoading(true);
-            await supabase.auth.signOut();
-            showLoading(false);
-            // onAuthStateChange gestirà la navigazione alla pagina di login
-        }));
-
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            showLoading(true);
-            if (session && session.user) {
-                const user = session.user;
-                if (user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                    adminView.style.display = 'block';
-                    publicView.style.display = 'none';
-                    navigateTo('main');
-                } else {
-                    adminView.style.display = 'none';
-                    publicView.style.display = 'block';
-                    
-                    const { data, error } = await supabase.from('votanti').select(`voti_${activeEvent}`).eq('user_id', user.id).single();
-                    const publicVotingArea = document.getElementById('public-voting-area');
-
-                    if (data && data[`voti_${activeEvent}`] && data[`voti_${activeEvent}`].length > 0) {
-                        publicVotingArea.innerHTML = `<p style="text-align:center; font-weight:bold;">Grazie per aver votato per la ${activeEvent.replace('_', ' ')}!</p>`;
-                    } else {
-                        publicVotingArea.style.display = 'block';
-                        renderContestantList();
-                    }
-                    navigateTo('main');
-                }
-            } else {
-                navigateTo('login');
-            }
-            showLoading(false);
-        });
-
-        // --- Logica Voto Pubblico ---
         voteBtn.addEventListener('click', async () => {
             const selectedCheckboxes = contestantsContainer.querySelectorAll('input[type="checkbox"]:checked');
             if (selectedCheckboxes.length === 0) return alert('Devi selezionare almeno un cantante.');
@@ -266,7 +299,6 @@
             showLoading(false);
         });
 
-        // --- Logica Admin ---
         activeEventSelect.addEventListener('change', (e) => { activeEvent = e.target.value; });
 
         const renderAdminContestantList = async () => {
