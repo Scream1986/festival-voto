@@ -5,88 +5,203 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vocal Hub Contest</title>
     <style>
-        :root { --header-bg: #000; --button-primary-bg: #ffc107; --button-primary-text: #000; --button-admin-bg: #dc3545; --secondary-color: #6c757d; --light-color: #f8f9fa; --success-color: #28a745; --danger-color: #dc3545; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; background-color: var(--light-color); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1rem 0; }
-        .app-container { width: 100%; max-width: 480px; background-color: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); overflow: hidden; }
-        header { background-color: var(--header-bg); color: white; text-align: center; padding: 0.5rem; }
-        header img { height: 60px; width: auto; display: block; margin: 0 auto; }
+        :root {
+            --header-bg: #000;
+            --button-primary-bg: #ffc107;
+            --button-primary-text: #000;
+            --button-admin-bg: #dc3545;
+            --secondary-color: #6c757d;
+            --light-color: #f8f9fa;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --disabled-color: #ccc;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            background-color: var(--light-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+        .app-container {
+            width: 100%;
+            max-width: 480px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        header {
+            background-color: var(--header-bg);
+            color: white;
+            text-align: center;
+            padding: 0.75rem;
+        }
+        header img {
+            height: 60px;
+            width: auto;
+            display: block;
+            margin: 0 auto;
+        }
         main { padding: 1.5rem; }
         .screen { display: none; }
         .screen.active { display: block; }
         h2, h3 { margin-top: 0; text-align: center; }
         .form-group { margin-bottom: 1rem; }
-        .contestant-list { list-style-type: none; padding: 0; }
-        .contestant-item { display: flex; align-items: center; background-color: #fdfdfd; border: 1px solid #ddd; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.5rem; }
-        .contestant-item input[type="checkbox"] { width: 1.5em; height: 1.5em; margin-right: 1rem; }
-        .contestant-item label, .admin-contestant-list-item span { font-weight: 500; flex-grow: 1; }
         label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
-        input[type="text"], input[type="email"] { width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .btn { display: block; width: 100%; padding: 0.75rem; border: none; border-radius: 4px; font-size: 1rem; font-weight: bold; cursor: pointer; text-align: center; text-decoration: none; margin-top: 1rem; }
-        .btn:disabled { background-color: #ccc; cursor: not-allowed; }
+        input[type="text"], input[type="email"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 0.85rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            margin-top: 1rem;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { background-color: var(--disabled-color); cursor: not-allowed; }
         .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; margin: 0; width: auto; }
         .btn-primary { background-color: var(--button-primary-bg); color: var(--button-primary-text); }
         .btn-secondary { background-color: var(--secondary-color); color: white; }
         .btn-admin { background-color: var(--button-admin-bg); color: white; }
-        .admin-controls { border: 1px solid #eee; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
+        
+        /* Stili Admin */
+        .admin-controls { border: 1px solid #eee; padding: 1rem; margin-bottom: 1.5rem; border-radius: 8px; }
         .admin-controls h3 { margin-bottom: 1rem; }
-        .admin-contestant-list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; border-bottom: 1px solid #eee; }
-        .add-contestant-form { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
-        #login-message, #voting-status { text-align: center; padding: 10px; border-radius: 5px; font-weight: bold; margin-bottom: 1rem; }
+        .voting-status-toggle { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background-color: #f9f9f9; border-radius: 8px; margin-bottom: 0.5rem; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--success-color); }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        /* Stili Votazione Pubblico */
+        .voting-card { background-color: #fdfdfd; border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .voting-card h3 { margin-bottom: 1rem; }
+        .contestant-list { list-style-type: none; padding: 0; }
+        .contestant-item { display: flex; align-items: center; padding: 0.5rem 0; }
+        .contestant-item input[type="checkbox"] { width: 1.5em; height: 1.5em; margin-right: 1rem; }
+        .contestant-item label { font-weight: 500; flex-grow: 1; margin: 0; }
+
+        /* Messaggi e Loading */
+        #loading-spinner { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.8); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--button-primary-bg); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .message-box { text-align: center; padding: 10px; border-radius: 5px; font-weight: bold; margin-bottom: 1rem; display: none; }
+
+        /* Modal Custom */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 2000; }
+        .modal-box { background: white; padding: 2rem; border-radius: 12px; text-align: center; max-width: 90%; width: 320px; }
+        .modal-box p { margin: 0 0 1.5rem 0; }
+        .modal-buttons { display: flex; gap: 1rem; justify-content: center; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <div id="loading-spinner" style="display: none; position: fixed; top: 45%; font-weight: bold; background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">Caricamento...</div>
+    <div id="loading-spinner">
+        <div class="spinner"></div>
+        <p style="margin-top: 1rem;">Caricamento...</p>
+    </div>
+
+    <div class="modal-overlay" id="custom-alert-modal">
+        <div class="modal-box">
+            <p id="custom-alert-message"></p>
+            <div class="modal-buttons">
+                <button id="custom-alert-ok" class="btn btn-primary">OK</button>
+            </div>
+        </div>
+    </div>
 
     <div class="app-container">
         <header id="app-header">
             <img src="https://raw.githubusercontent.com/Scream1986/festival-voto/main/Logo.png" alt="Vocal Hub Logo">
         </header>
         <main>
-            <div id="login-screen" class="screen">
+            <!-- Schermata di Login -->
+            <div id="login-screen" class="screen active">
                 <h2>Benvenuto al Contest</h2>
-                <p style="text-align: center; color: #666;">Inserisci la tua Email per ricevere un codice di accesso, oppure usa il tuo Codice Admin.</p>
-                <div id="login-message"></div>
+                <p style="text-align: center; color: #666;">Inserisci la tua Email per votare, oppure il Codice Admin per gestire l'evento.</p>
+                <div id="login-message" class="message-box"></div>
                 <div class="form-group">
                     <label for="user-input">La tua Email o Codice Admin</label>
                     <input type="text" id="user-input" placeholder="email@example.com oppure il codice" autocomplete="off">
                 </div>
-                <button id="login-btn" class="btn btn-primary">Accedi o Ricevi Codice</button>
+                <button id="login-btn" class="btn btn-primary">Avanti</button>
             </div>
 
+            <!-- Schermata di Verifica Codice OTP -->
+            <div id="otp-screen" class="screen">
+                <h2>Verifica Codice</h2>
+                <p id="otp-info" style="text-align: center; color: #666;">Abbiamo inviato un codice a <strong id="otp-email"></strong>. Inseriscilo qui sotto.</p>
+                <div id="otp-message" class="message-box"></div>
+                <div class="form-group">
+                    <label for="otp-input">Codice di verifica</label>
+                    <input type="text" id="otp-input" placeholder="123456" autocomplete="off">
+                </div>
+                <button id="otp-btn" class="btn btn-primary">Conferma</button>
+                <button id="back-to-login-btn" class="btn btn-secondary">Indietro</button>
+            </div>
+
+            <!-- Schermata Principale (Contiene Admin e Pubblico) -->
             <div id="main-screen" class="screen">
+                <!-- Vista Amministratore -->
                 <div id="admin-view" style="display: none;">
                     <h2>Pannello Amministratore</h2>
                     <div class="admin-controls">
-                        <h3>Gestione Serate</h3>
-                        <label for="active-event-select">Serata Attiva per il Pubblico:</label>
-                        <select id="active-event-select"><option value="serata_1">Serata 1</option><option value="serata_2">Serata 2</option></select>
+                        <h3>Stato Votazioni</h3>
+                        <div class="voting-status-toggle">
+                            <span>Serata 1</span>
+                            <label class="switch"><input type="checkbox" id="serata-1-toggle" data-serata="serata_1"><span class="slider"></span></label>
+                        </div>
+                        <div class="voting-status-toggle">
+                            <span>Serata 2</span>
+                            <label class="switch"><input type="checkbox" id="serata-2-toggle" data-serata="serata_2"><span class="slider"></span></label>
+                        </div>
+                    </div>
+                    <div class="admin-controls">
+                        <h3>Partecipanti in Gara</h3>
+                        <div id="admin-contestant-list-preview" style="max-height: 150px; overflow-y: auto; padding: 0 0.5rem;"></div>
                     </div>
                     <div class="admin-controls">
                         <h3>Azioni e Risultati</h3>
                         <button id="manage-contestants-btn" class="btn btn-secondary">Gestisci Partecipanti</button>
-                        <button id="general-ranking-btn" class="btn btn-primary">Classifica Generale</button>
-                        <button id="view-results-btn" class="btn btn-secondary">Risultati Dettagliati (S1+S2+Tot)</button>
+                        <button id="view-results-btn" class="btn btn-primary">Vedi Risultati</button>
                     </div>
-                    <button id="logout-btn-admin" class="btn btn-admin" style="margin-top: 2rem;">Esci</button>
+                    <button id="logout-btn-admin" class="btn btn-admin" style="margin-top: 1rem;">Esci</button>
                 </div>
 
+                <!-- Vista Pubblico -->
                 <div id="public-view" style="display: none;">
                     <h2 id="public-welcome">Area Votazione</h2>
-                    <div id="voting-status"></div>
                     <div id="public-voting-area">
-                        <p>Puoi esprimere fino a <strong>3 preferenze</strong> per la serata in corso.</p>
-                        <div id="contestants-container"></div>
-                        <button id="vote-btn" class="btn btn-primary">Vota le tue 3 preferenze</button>
+                        <!-- Le card di votazione verranno inserite qui dinamicamente -->
                     </div>
                     <button id="logout-btn-public" class="btn btn-secondary">Esci</button>
                 </div>
             </div>
             
+            <!-- Schermata Gestione Partecipanti -->
             <div id="manage-screen" class="screen">
                 <h2>Gestione Partecipanti</h2>
                 <div id="admin-contestant-list-container"></div>
-                <div class="add-contestant-form">
+                <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
                     <input type="text" id="new-contestant-name" placeholder="Nome nuovo partecipante" style="flex-grow: 1;">
                     <button id="add-contestant-btn" class="btn btn-primary btn-sm">Aggiungi</button>
                 </div>
@@ -99,9 +214,21 @@
     // ---------- 1. CONFIGURAZIONE ----------
     const SUPABASE_URL = 'https://funebgzoioakkuflbeln.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1bmViZ3pvaW9ha2t1ZmxiZWxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5NTQwMzcsImV4cCI6MjA3MTUzMDAzN30.0CYThDbWz5FTP-vTikitX_4oBjxD2lHQXprH7cJj-9M';
-    const ADMIN_EMAIL = 'robtolu@hotmail.com';
-    const ADMIN_CODE = 'Rob025490';
+    
+    // !!! IMPORTANTE: Inserisci qui il tuo codice admin segreto !!!
+    const ADMIN_CODE = 'VocalHubAdmin2024'; 
+    // Email fittizia per l'account admin di Supabase (necessaria per l'autenticazione)
+    const ADMIN_EMAIL_FOR_SUPABASE = 'admin@vocalhubcontest.com';
     // ---------- FINE CONFIGURAZIONE ----------
+
+    /*
+     * !!! ISTRUZIONI IMPORTANTI PER SUPABASE !!!
+     * 1. Assicurati di avere una tabella 'cantanti' con una colonna 'nome' (text, Primary Key).
+     * 2. Assicurati di avere una tabella 'votanti' con colonne: 'user_id' (uuid, Primary Key), 'voti_serata_1' (jsonb), 'voti_serata_2' (jsonb).
+     * 3. Crea una nuova tabella chiamata 'serate_status' per gestire l'apertura/chiusura delle votazioni.
+     * - Colonne: 'id' (text, Primary Key), 'is_open' (bool, default: false).
+     * - Inserisci due righe: una con id='serata_1' e una con id='serata_2'.
+    */
 
     const { createClient } = window.supabase;
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -111,244 +238,329 @@
         const loadingSpinner = document.getElementById('loading-spinner');
         const screens = {
             login: document.getElementById('login-screen'),
+            otp: document.getElementById('otp-screen'),
             main: document.getElementById('main-screen'),
             manage: document.getElementById('manage-screen')
         };
-        const adminView = document.getElementById('admin-view');
-        const publicView = document.getElementById('public-view');
-        const loginBtn = document.getElementById('login-btn');
-        const userInput = document.getElementById('user-input');
-        const userInputLabel = document.querySelector('label[for="user-input"]');
-        const logoutButtons = document.querySelectorAll('#logout-btn-admin, #logout-btn-public');
-        const voteBtn = document.getElementById('vote-btn');
         const loginMessage = document.getElementById('login-message');
-        const activeEventSelect = document.getElementById('active-event-select');
-        const contestantsContainer = document.getElementById('contestants-container');
-        const adminContestantListContainer = document.getElementById('admin-contestant-list-container');
-        const manageContestantsBtn = document.getElementById('manage-contestants-btn');
-        const backToAdminBtn = document.getElementById('back-to-admin-btn');
-        const addContestantBtn = document.getElementById('add-contestant-btn');
-        const generalRankingBtn = document.getElementById('general-ranking-btn');
-        const viewResultsBtn = document.getElementById('view-results-btn');
+        const otpMessage = document.getElementById('otp-message');
         
-        let activeEvent = 'serata_1';
-        let userEmailForVerification = ''; // Variabile per salvare l'email dell'utente
-        let isWaitingForCode = false; // Stato per sapere se stiamo aspettando un codice
+        let userEmailForVerification = '';
 
-        // --- Funzioni UI ---
+        // --- Funzioni UI e Navigazione ---
         const showLoading = (isLoading) => { loadingSpinner.style.display = isLoading ? 'flex' : 'none'; };
+        
         const navigateTo = (screenId) => {
             Object.values(screens).forEach(s => s.classList.remove('active'));
             if (screens[screenId]) screens[screenId].classList.add('active');
         };
-        const showLoginMessage = (message, isError = false) => {
-            loginMessage.textContent = message;
-            loginMessage.style.color = isError ? 'var(--danger-color)' : 'var(--success-color)';
-            loginMessage.style.display = message ? 'block' : 'none';
+
+        const showMessage = (element, message, isError = false) => {
+            element.textContent = message;
+            element.style.color = isError ? 'var(--danger-color)' : 'var(--success-color)';
+            element.style.display = message ? 'block' : 'none';
         };
-        const resetLoginView = () => {
-            isWaitingForCode = false;
-            userEmailForVerification = '';
-            userInput.value = '';
-            userInputLabel.textContent = 'La tua Email o Codice Admin';
-            userInput.placeholder = 'email@example.com oppure il codice';
-            loginBtn.textContent = 'Accedi o Ricevi Codice';
-            showLoginMessage('');
+        
+        const customAlert = (message) => {
+            document.getElementById('custom-alert-message').textContent = message;
+            const modal = document.getElementById('custom-alert-modal');
+            modal.style.display = 'flex';
+            document.getElementById('custom-alert-ok').onclick = () => {
+                modal.style.display = 'none';
+            };
         };
 
-        // --- NUOVA LOGICA DI LOGIN A CODICE ---
-        const handleLogin = async () => {
-            const inputValue = userInput.value.trim();
-            if (!inputValue) {
-                showLoginMessage('Il campo non può essere vuoto.', true);
+        // --- Gestione Sessione e Stato Iniziale ---
+        const checkSession = async () => {
+            showLoading(true);
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                await setupUIForUser(session.user);
+            } else {
+                navigateTo('login');
+            }
+            showLoading(false);
+        };
+
+        supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN') {
+                setupUIForUser(session.user);
+            } else if (event === 'SIGNED_OUT') {
+                navigateTo('login');
+                document.getElementById('user-input').value = '';
+                document.getElementById('otp-input').value = '';
+            }
+        });
+
+        // --- Logica di Login ---
+        document.getElementById('login-btn').addEventListener('click', async () => {
+            const input = document.getElementById('user-input').value.trim();
+            if (!input) {
+                showMessage(loginMessage, 'Il campo non può essere vuoto.', true);
                 return;
             }
 
             showLoading(true);
-            loginBtn.disabled = true;
-            showLoginMessage('');
+            showMessage(loginMessage, '');
 
-            // Caso 1: L'utente è l'ADMIN
-            if (inputValue === ADMIN_CODE) {
+            if (input === ADMIN_CODE) {
+                // L'admin usa una combinazione fittizia email/password per l'autenticazione
                 const { error } = await supabase.auth.signInWithPassword({
-                    email: ADMIN_EMAIL,
+                    email: ADMIN_EMAIL_FOR_SUPABASE,
                     password: ADMIN_CODE,
                 });
                 if (error) {
-                    showLoginMessage('Codice Admin errato o problema di configurazione.', true);
+                    showMessage(loginMessage, 'Codice Admin non valido o errore.', true);
                 }
-                // Se il login va a buon fine, onAuthStateChange gestirà la navigazione
-            
-            // Caso 2: L'utente ha inserito il CODICE ricevuto via email
-            } else if (isWaitingForCode) {
-                const { data, error } = await supabase.auth.verifyOtp({
-                    email: userEmailForVerification,
-                    token: inputValue,
-                    type: 'email'
-                });
-                if (error) {
-                    showLoginMessage('Codice non valido o scaduto. Riprova.', true);
-                    resetLoginView(); // Resetta la vista per permettere di ricominciare
-                }
-                // Se il codice è valido, onAuthStateChange gestirà la navigazione
-                
-            // Caso 3: L'utente ha inserito l'EMAIL per ricevere il codice
+                // onAuthStateChange gestirà la navigazione
             } else {
-                const { error } = await supabase.auth.signInWithOtp({
-                    email: inputValue
-                });
-
+                // L'utente normale usa l'email per ricevere un codice OTP
+                const { error } = await supabase.auth.signInWithOtp({ email: input });
                 if (error) {
-                    showLoginMessage('Email non valida o errore del server.', true);
+                    showMessage(loginMessage, 'Email non valida o errore del server.', true);
                 } else {
-                    isWaitingForCode = true;
-                    userEmailForVerification = inputValue; // Salviamo l'email
-                    showLoginMessage('Codice inviato! Controlla la tua casella di posta (anche lo spam).');
-                    // Aggiorniamo la UI per chiedere il codice
-                    userInputLabel.textContent = `Codice inviato a ${userEmailForVerification}`;
-                    userInput.placeholder = 'Inserisci il codice che hai ricevuto';
-                    userInput.value = '';
-                    loginBtn.textContent = 'Verifica Codice';
+                    userEmailForVerification = input;
+                    document.getElementById('otp-email').textContent = userEmailForVerification;
+                    navigateTo('otp');
                 }
             }
-
             showLoading(false);
-            loginBtn.disabled = false;
-        };
-        
-        loginBtn.addEventListener('click', handleLogin);
-
-        logoutButtons.forEach(btn => btn.addEventListener('click', async () => {
-            showLoading(true);
-            await supabase.auth.signOut();
-            resetLoginView();
-            showLoading(false);
-        }));
-
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            if (session && session.user) {
-                showLoading(true);
-                const user = session.user;
-                if (user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                    adminView.style.display = 'block';
-                    publicView.style.display = 'none';
-                    navigateTo('main');
-                } else {
-                    adminView.style.display = 'none';
-                    publicView.style.display = 'block';
-                    
-                    const { data, error } = await supabase.from('votanti').select(`voti_${activeEvent}`).eq('user_id', user.id).single();
-                    const publicVotingArea = document.getElementById('public-voting-area');
-
-                    if (data && data[`voti_${activeEvent}`] && data[`voti_${activeEvent}`].length > 0) {
-                        publicVotingArea.innerHTML = `<p style="text-align:center; font-weight:bold;">Grazie per aver votato per la ${activeEvent.replace('_', ' ')}!</p>`;
-                    } else {
-                        publicVotingArea.style.display = 'block';
-                        await renderContestantList();
-                    }
-                    navigateTo('main');
-                }
-                showLoading(false);
-            } else {
-                navigateTo('login');
-                resetLoginView();
-            }
         });
-        
-        const renderContestantList = async () => {
-            const { data, error } = await supabase.from('cantanti').select('nome').order('nome');
-            if (error) { alert('Errore nel caricamento dei cantanti.'); return; }
-            let html = '<ul class="contestant-list">';
-            data.forEach((c, index) => {
-                html += `<li class="contestant-item"><input type="checkbox" id="contestant-${index}" value="${c.nome}"><label for="contestant-${index}">${c.nome}</label></li>`;
-            });
-            html += '</ul>';
-            contestantsContainer.innerHTML = html;
-            contestantsContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                checkbox.addEventListener('change', () => {
-                    if (contestantsContainer.querySelectorAll('input[type="checkbox"]:checked').length > 3) {
-                        alert('Puoi selezionare un massimo di 3 cantanti.');
-                        checkbox.checked = false;
-                    }
-                });
-            });
-        };
 
-        voteBtn.addEventListener('click', async () => {
-            const selectedCheckboxes = contestantsContainer.querySelectorAll('input[type="checkbox"]:checked');
-            if (selectedCheckboxes.length === 0) return alert('Devi selezionare almeno un cantante.');
-            if (selectedCheckboxes.length > 3) return alert('Puoi selezionare un massimo di 3 cantanti.');
-            
-            const VotiSelezionati = Array.from(selectedCheckboxes).map(cb => cb.value);
-            
+        document.getElementById('otp-btn').addEventListener('click', async () => {
+            const otp = document.getElementById('otp-input').value.trim();
+            if (!otp) {
+                showMessage(otpMessage, 'Inserisci il codice ricevuto.', true);
+                return;
+            }
             showLoading(true);
-            voteBtn.disabled = true;
-
-            const { data: { user } } = await supabase.auth.getUser();
-            const colonnaVoti = `voti_${activeEvent}`;
-            
-            const { error } = await supabase.from('votanti').upsert({ user_id: user.id, [colonnaVoti]: VotiSelezionati }, { onConflict: 'user_id' });
-
+            showMessage(otpMessage, '');
+            const { error } = await supabase.auth.verifyOtp({
+                email: userEmailForVerification,
+                token: otp,
+                type: 'email'
+            });
             if (error) {
-                alert('Si è verificato un errore durante il salvataggio del voto.');
-                voteBtn.disabled = false;
-            } else {
-                alert('Voto registrato con successo!');
-                document.getElementById('public-voting-area').innerHTML = `<p style="text-align:center; font-weight:bold;">Grazie per aver votato per la ${activeEvent.replace('_', ' ')}!</p>`;
+                showMessage(otpMessage, 'Codice non valido o scaduto. Riprova.', true);
             }
+            // onAuthStateChange gestirà la navigazione in caso di successo
             showLoading(false);
         });
 
-        activeEventSelect.addEventListener('change', (e) => { activeEvent = e.target.value; });
-
-        const renderAdminContestantList = async () => {
-            const { data, error } = await supabase.from('cantanti').select('nome').order('nome');
-            if (error) return alert('Errore nel caricamento dei cantanti.');
-            let html = '<div class="admin-contestant-list">';
-            data.forEach(c => {
-                html += `<div class="admin-contestant-list-item"><span>${c.nome}</span><button class="btn btn-admin btn-sm btn-remove" data-name="${c.nome}">Rimuovi</button></div>`;
-            });
-            html += '</div>';
-            adminContestantListContainer.innerHTML = html;
+        document.getElementById('back-to-login-btn').addEventListener('click', () => navigateTo('login'));
+        
+        // --- Setup Interfaccia Utente ---
+        const setupUIForUser = async (user) => {
+            showLoading(true);
+            if (user.email === ADMIN_EMAIL_FOR_SUPABASE) {
+                await setupAdminView();
+            } else {
+                await setupPublicView(user);
+            }
+            navigateTo('main');
+            showLoading(false);
         };
 
-        manageContestantsBtn.addEventListener('click', async () => {
+        // --- VISTA ADMIN ---
+        const setupAdminView = async () => {
+            document.getElementById('admin-view').style.display = 'block';
+            document.getElementById('public-view').style.display = 'none';
+            await updateAdminContestantPreview();
+            
+            // Carica stato iniziale dei toggle
+            const { data, error } = await supabase.from('serate_status').select('*');
+            if (error) {
+                customAlert("Errore nel caricare lo stato delle serate.");
+                return;
+            }
+            data.forEach(serata => {
+                const toggle = document.getElementById(`${serata.id}-toggle`);
+                if(toggle) toggle.checked = serata.is_open;
+            });
+        };
+
+        const updateAdminContestantPreview = async () => {
+            const { data, error } = await supabase.from('cantanti').select('nome').order('nome');
+            const previewContainer = document.getElementById('admin-contestant-list-preview');
+            if (error || !data) {
+                previewContainer.innerHTML = '<p>Errore nel caricare i partecipanti.</p>';
+                return;
+            }
+            if (data.length === 0) {
+                 previewContainer.innerHTML = '<p style="text-align: center; color: #666;">Nessun partecipante.</p>';
+                 return;
+            }
+            previewContainer.innerHTML = data.map(c => `<div>- ${c.nome}</div>`).join('');
+        };
+
+        ['serata-1-toggle', 'serata-2-toggle'].forEach(id => {
+            document.getElementById(id).addEventListener('change', async (e) => {
+                const serataId = e.target.dataset.serata;
+                const isOpen = e.target.checked;
+                showLoading(true);
+                const { error } = await supabase.from('serate_status').update({ is_open: isOpen }).eq('id', serataId);
+                showLoading(false);
+                if (error) {
+                    customAlert(`Errore nell'aggiornare la ${serataId}.`);
+                    e.target.checked = !isOpen; // Ripristina lo stato precedente
+                } else {
+                    customAlert(`Votazioni per ${serataId.replace('_', ' ')} ${isOpen ? 'APERTE' : 'CHIUSE'}.`);
+                }
+            });
+        });
+
+        // --- VISTA PUBBLICO ---
+        const setupPublicView = async (user) => {
+            document.getElementById('public-view').style.display = 'block';
+            document.getElementById('admin-view').style.display = 'none';
+            document.getElementById('public-welcome').textContent = `Ciao, ${user.email.split('@')[0]}!`;
+
+            // 1. Prendi lo stato di apertura di tutte le serate
+            const { data: serateStatus, error: serateError } = await supabase.from('serate_status').select('*');
+            if (serateError) return customAlert("Errore nel caricare le serate.");
+
+            // 2. Prendi i voti già espressi dall'utente
+            const { data: userData, error: userError } = await supabase.from('votanti').select('voti_serata_1, voti_serata_2').eq('user_id', user.id).single();
+            
+            // 3. Prendi la lista di tutti i cantanti
+            const { data: contestants, error: contestantsError } = await supabase.from('cantanti').select('nome').order('nome');
+            if (contestantsError) return customAlert("Errore nel caricare i cantanti.");
+
+            const votingArea = document.getElementById('public-voting-area');
+            votingArea.innerHTML = ''; // Pulisce l'area
+
+            const openSerate = serateStatus.filter(s => s.is_open);
+
+            if (openSerate.length === 0) {
+                votingArea.innerHTML = '<p style="text-align:center;">Al momento non ci sono votazioni aperte.</p>';
+                return;
+            }
+
+            openSerate.forEach(serata => {
+                const serataId = serata.id; // 'serata_1' o 'serata_2'
+                const userHasVoted = userData && userData[`voti_${serataId}`] && userData[`voti_${serataId}`].length > 0;
+
+                if (userHasVoted) {
+                    votingArea.innerHTML += `<div class="voting-card"><h3>Grazie per aver votato per la ${serataId.replace('_', ' ')}!</h3></div>`;
+                } else {
+                    let cardHTML = `
+                        <div class="voting-card" id="card-${serataId}">
+                            <h3>Vota per la ${serataId.replace('_', ' ')}</h3>
+                            <p style="text-align:center; font-size: 0.9em; color: #666;">Puoi esprimere fino a 3 preferenze.</p>
+                            <ul class="contestant-list">`;
+                    
+                    contestants.forEach((c, index) => {
+                        cardHTML += `<li class="contestant-item"><input type="checkbox" id="${serataId}-contestant-${index}" value="${c.nome}"><label for="${serataId}-contestant-${index}">${c.nome}</label></li>`;
+                    });
+
+                    cardHTML += `</ul><button class="btn btn-primary btn-vote" data-serata="${serataId}">Invia Voto</button></div>`;
+                    votingArea.innerHTML += cardHTML;
+                }
+            });
+            addVoteButtonListeners(user);
+        };
+
+        const addVoteButtonListeners = (user) => {
+             document.querySelectorAll('.btn-vote').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const serataId = e.target.dataset.serata;
+                    const card = document.getElementById(`card-${serataId}`);
+                    const selectedCheckboxes = card.querySelectorAll('input[type="checkbox"]:checked');
+
+                    if (selectedCheckboxes.length === 0 || selectedCheckboxes.length > 3) {
+                        customAlert('Devi selezionare da 1 a 3 preferenze.');
+                        return;
+                    }
+
+                    const VotiSelezionati = Array.from(selectedCheckboxes).map(cb => cb.value);
+                    
+                    showLoading(true);
+                    button.disabled = true;
+
+                    const colonnaVoti = `voti_${serataId}`;
+                    const { error } = await supabase.from('votanti').upsert({ user_id: user.id, [colonnaVoti]: VotiSelezionati }, { onConflict: 'user_id' });
+
+                    showLoading(false);
+                    if (error) {
+                        customAlert('Si è verificato un errore durante il salvataggio del voto.');
+                        button.disabled = false;
+                    } else {
+                        customAlert('Voto registrato con successo!');
+                        await setupPublicView(user); // Ricarica la vista pubblico
+                    }
+                });
+            });
+        };
+
+        // --- Logout ---
+        document.querySelectorAll('#logout-btn-admin, #logout-btn-public').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                showLoading(true);
+                await supabase.auth.signOut();
+                showLoading(false);
+            });
+        });
+
+        // --- Gestione Partecipanti ---
+        document.getElementById('manage-contestants-btn').addEventListener('click', async () => {
             await renderAdminContestantList();
             navigateTo('manage');
         });
         
-        backToAdminBtn.addEventListener('click', () => navigateTo('main'));
+        document.getElementById('back-to-admin-btn').addEventListener('click', async () => {
+            navigateTo('main');
+            await updateAdminContestantPreview(); // Aggiorna la preview quando torni indietro
+        });
         
-        addContestantBtn.addEventListener('click', async () => {
+        const renderAdminContestantList = async () => {
+            const { data, error } = await supabase.from('cantanti').select('nome').order('nome');
+            const container = document.getElementById('admin-contestant-list-container');
+            if (error) {
+                container.innerHTML = '<p>Errore nel caricamento dei cantanti.</p>';
+                return;
+            }
+            let html = data.map(c => `<div style="display:flex; justify-content:space-between; align-items:center; padding: 0.5rem; border-bottom: 1px solid #eee;"><span>${c.nome}</span><button class="btn btn-admin btn-sm btn-remove" data-name="${c.nome}">Rimuovi</button></div>`).join('');
+            container.innerHTML = html || '<p style="text-align:center; color:#666;">Nessun partecipante inserito.</p>';
+        };
+
+        document.getElementById('add-contestant-btn').addEventListener('click', async () => {
             const nameInput = document.getElementById('new-contestant-name');
             const newName = nameInput.value.trim();
-            if (!newName) return alert('Il nome non può essere vuoto.');
+            if (!newName) return customAlert('Il nome non può essere vuoto.');
+            
+            showLoading(true);
             const { error } = await supabase.from('cantanti').insert({ nome: newName });
+            showLoading(false);
+            
             if (error) {
-                alert('Errore: questo cantante è già presente o si è verificato un altro problema.');
+                customAlert('Errore: questo cantante è già presente o si è verificato un altro problema.');
             } else {
                 nameInput.value = '';
                 await renderAdminContestantList();
             }
         });
 
-        adminContestantListContainer.addEventListener('click', async (e) => {
+        document.getElementById('admin-contestant-list-container').addEventListener('click', async (e) => {
             if (e.target.classList.contains('btn-remove')) {
                 const nameToRemove = e.target.dataset.name;
-                if (confirm(`Sei sicuro di voler rimuovere ${nameToRemove}?`)) {
+                // Usiamo un confirm custom in futuro se necessario, per ora alert/confirm va bene per la logica
+                if (window.confirm(`Sei sicuro di voler rimuovere ${nameToRemove}?`)) {
+                    showLoading(true);
                     const { error } = await supabase.from('cantanti').delete().eq('nome', nameToRemove);
-                    if (error) { alert('Errore durante la rimozione.'); }
+                    showLoading(false);
+                    if (error) { customAlert('Errore durante la rimozione.'); }
                     else { await renderAdminContestantList(); }
                 }
             }
         });
 
-        const showResults = async (detailed = false) => {
+        // --- Visualizzazione Risultati ---
+        document.getElementById('view-results-btn').addEventListener('click', async () => {
             showLoading(true);
             const { data, error } = await supabase.from('votanti').select('voti_serata_1, voti_serata_2');
             if (error) {
                 showLoading(false);
-                return alert('Errore nel caricamento dei risultati.');
+                return customAlert('Errore nel caricamento dei risultati.');
             }
             
             const votes = {};
@@ -367,21 +579,20 @@
 
             const sorted = Object.entries(votes).sort(([, a], [, b]) => b.total - a.total);
             
-            let resultsMessage = detailed ? '--- Risultati Dettagliati ---\n\n' : '--- Classifica Generale ---\n\n';
-            sorted.forEach(([nome, conteggio], index) => {
-                if (detailed) {
-                    resultsMessage += `${nome}: ${conteggio.total} voti (S1: ${conteggio.s1}, S2: ${conteggio.s2})\n`;
-                } else {
-                    resultsMessage += `${index + 1}. ${nome}: ${conteggio.total} voti\n`;
-                }
+            let resultsMessage = '--- Risultati Dettagliati ---\n\n';
+            sorted.forEach(([nome, conteggio]) => {
+                resultsMessage += `${nome}: ${conteggio.total} voti (S1: ${conteggio.s1}, S2: ${conteggio.s2})\n`;
             });
-
+            
             showLoading(false);
-            alert(resultsMessage || 'Nessun voto registrato.');
-        };
-        
-        generalRankingBtn.addEventListener('click', () => showResults(false));
-        viewResultsBtn.addEventListener('click', () => showResults(true));
+            // Mostra i risultati in un formato più leggibile
+            customAlert(resultsMessage.replace(/\n/g, '<br>'));
+            // Per mantenere la formattazione, potremmo usare un <pre> nel modal
+            document.getElementById('custom-alert-message').innerHTML = `<pre style="text-align: left; white-space: pre-wrap;">${resultsMessage}</pre>`;
+        });
+
+        // --- Avvio Applicazione ---
+        checkSession();
     });
 </script>
 </body>
