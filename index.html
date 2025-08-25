@@ -40,7 +40,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <div id="loading-spinner" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.8); z-index: 9999; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 1.2rem;">Caricamento...</div>
+    <div id="loading-spinner" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.8); z-index: 9999; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 1.2rem;">Caricamento...</div>
 
     <div class="app-container">
         <header id="app-header">
@@ -49,11 +49,11 @@
         <main>
             <div id="login-screen" class="screen">
                 <h2>Benvenuto al Contest</h2>
-                <p style="text-align: center; color: #666;">Inserisci la tua Email per votare, oppure usa il tuo Codice Admin per gestire l'evento.</p>
+                <p style="text-align: center; color: #666;">Inserisci la tua Email per ricevere un codice di accesso, oppure usa il tuo Codice Admin.</p>
                 <div id="login-message"></div>
                 <div class="form-group">
                     <label for="user-input">La tua Email o Codice Admin</label>
-                    <input type="text" id="user-input" placeholder="email@example.com o il codice" autocomplete="off">
+                    <input type="text" id="user-input" placeholder="email@example.com oppure il codice" autocomplete="off">
                 </div>
                 <button id="login-btn" class="btn btn-primary">Accedi o Ricevi Codice</button>
             </div>
@@ -102,21 +102,16 @@
     // ---------- 1. CONFIGURAZIONE ----------
     const SUPABASE_URL = 'https://funebgzoioakkuflbeln.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1bmViZ3pvaW9ha2t1ZmxiZWxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5NTQwMzcsImV4cCI6MjA3MTUzMDAzN30.0CYThDbWz5FTP-vTikitX_4oBjxD2lHQXprH7cJj-9M';
-    const ADMIN_EMAIL = 'robtolu@hotmail.com'; // L'email dell'account admin in Supabase
-    const ADMIN_CODE = 'Rob025490'; // La password dell'account admin in Supabase
+    const ADMIN_EMAIL = 'robtolu@hotmail.com';
+    const ADMIN_CODE = 'Rob025490';
     // ---------- FINE CONFIGURAZIONE ----------
 
     const { createClient } = window.supabase;
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     document.addEventListener('DOMContentLoaded', () => {
-        // --- Elementi del DOM ---
         const loadingSpinner = document.getElementById('loading-spinner');
-        const screens = {
-            login: document.getElementById('login-screen'),
-            main: document.getElementById('main-screen'),
-            manage: document.getElementById('manage-screen')
-        };
+        const screens = { login: document.getElementById('login-screen'), main: document.getElementById('main-screen'), manage: document.getElementById('manage-screen') };
         const adminView = document.getElementById('admin-view');
         const publicView = document.getElementById('public-view');
         const loginBtn = document.getElementById('login-btn');
@@ -133,12 +128,10 @@
         const generalRankingBtn = document.getElementById('general-ranking-btn');
         const viewResultsBtn = document.getElementById('view-results-btn');
         const serateStatusContainer = document.getElementById('serate-status-container');
-        const votingStatusDiv = document.getElementById('voting-status');
         
         let userEmailForVerification = '';
         let isWaitingForCode = false;
 
-        // --- Funzioni UI ---
         const showLoading = (isLoading) => { loadingSpinner.style.display = isLoading ? 'flex' : 'none'; };
         const navigateTo = (screenId) => {
             Object.values(screens).forEach(s => s.classList.remove('active'));
@@ -159,48 +152,29 @@
             showLoginMessage('');
         };
 
-        // --- LOGICA DI LOGIN MIGLIORATA ---
         const handleLogin = async () => {
             const inputValue = userInput.value.trim();
-            if (!inputValue) {
-                showLoginMessage('Il campo non può essere vuoto.', true);
-                return;
-            }
-
+            if (!inputValue) return showLoginMessage('Il campo non può essere vuoto.', true);
             showLoading(true);
             loginBtn.disabled = true;
             showLoginMessage('');
 
             if (inputValue === ADMIN_CODE) {
-                const { error } = await supabase.auth.signInWithPassword({
-                    email: ADMIN_EMAIL,
-                    password: ADMIN_CODE,
-                });
-                if (error) {
-                    showLoginMessage('Codice Admin non valido.', true);
-                }
+                const { error } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password: ADMIN_CODE });
+                if (error) showLoginMessage('Codice Admin errato o problema di configurazione.', true);
             } else if (isWaitingForCode) {
-                const { data, error } = await supabase.auth.verifyOtp({
-                    email: userEmailForVerification,
-                    token: inputValue,
-                    type: 'email'
-                });
-                if (error) {
-                    showLoginMessage('Codice non valido o scaduto. Reinserisci la tua email.', true);
-                    resetLoginView();
-                }
+                const { error } = await supabase.auth.verifyOtp({ email: userEmailForVerification, token: inputValue, type: 'email' });
+                if (error) { showLoginMessage('Codice non valido o scaduto. Riprova.', true); resetLoginView(); }
             } else {
-                const { error } = await supabase.auth.signInWithOtp({
-                    email: inputValue
-                });
+                const { error } = await supabase.auth.signInWithOtp({ email: inputValue });
                 if (error) {
                     showLoginMessage('Email non valida o errore del server.', true);
                 } else {
                     isWaitingForCode = true;
                     userEmailForVerification = inputValue;
-                    showLoginMessage('Codice inviato! Controlla la tua email (anche spam).');
+                    showLoginMessage('Codice inviato! Controlla la tua casella di posta (anche lo spam).');
                     userInputLabel.textContent = `Codice inviato a ${userEmailForVerification}`;
-                    userInput.placeholder = 'Inserisci il codice ricevuto';
+                    userInput.placeholder = 'Inserisci il codice che hai ricevuto';
                     userInput.value = '';
                     loginBtn.textContent = 'Verifica Codice';
                 }
@@ -218,75 +192,50 @@
             showLoading(false);
         }));
 
-        // --- GESTIONE SESSIONE UTENTE ---
         supabase.auth.onAuthStateChange(async (event, session) => {
             showLoading(true);
-            try {
-                if (session && session.user) {
-                    const user = session.user;
-                    if (user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                        adminView.style.display = 'block';
-                        publicView.style.display = 'none';
-                        await renderAdminControls();
-                        navigateTo('main');
-                    } else {
-                        adminView.style.display = 'none';
-                        publicView.style.display = 'block';
-                        await renderPublicVotingView(user);
-                        navigateTo('main');
-                    }
+            if (session && session.user) {
+                const user = session.user;
+                if (user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                    adminView.style.display = 'block';
+                    publicView.style.display = 'none';
+                    await renderAdminControls();
+                    navigateTo('main');
                 } else {
-                    navigateTo('login');
-                    resetLoginView();
+                    adminView.style.display = 'none';
+                    publicView.style.display = 'block';
+                    await renderPublicVotingView(user);
+                    navigateTo('main');
                 }
-            } catch (error) {
-                console.error("Errore critico durante l'avvio:", error);
-                alert("Si è verificato un errore critico. Controlla la console per i dettagli (F12).");
-            } finally {
-                showLoading(false);
+            } else {
+                navigateTo('login');
+                resetLoginView();
             }
+            showLoading(false);
         });
         
-        // --- VISTA PUBBLICO ---
         const renderPublicVotingView = async (user) => {
             const publicVotingArea = document.getElementById('public-voting-area');
             const { data: serate, error: serateError } = await supabase.from('serate_status').select('*');
-            if (serateError || !serate) {
-                publicVotingArea.innerHTML = `<p style="text-align:center; font-weight:bold; color:red;">Errore di configurazione. Contattare l'amministratore.</p>`;
-                return;
-            }
 
+            if (serateError) return publicVotingArea.innerHTML = `<p style="color:red;text-align:center;">Errore di configurazione serate. Contatta l'admin.</p>`;
+            
             const serataAttiva = serate.find(s => s.is_active);
-            const serataCorrenteId = serataAttiva ? serataAttiva.id : null;
+            if (!serataAttiva) return publicVotingArea.innerHTML = `<p style="text-align:center;">Nessuna serata è attiva per il voto.</p>`;
+            if (!serataAttiva.is_open) return publicVotingArea.innerHTML = `<p style="text-align:center;">Le votazioni per la ${serataAttiva.id.replace('_', ' ')} sono chiuse.</p>`;
             
-            if (!serataCorrenteId) {
-                 publicVotingArea.innerHTML = `<p style="text-align:center; font-weight:bold;">Nessuna serata è attiva per il voto in questo momento.</p>`;
-                 return;
-            }
-
-            const serataInfo = serate.find(s => s.id === serataCorrenteId);
-            if (!serataInfo || !serataInfo.is_open) {
-                publicVotingArea.innerHTML = `<p style="text-align:center; font-weight:bold;">Le votazioni per la ${serataCorrenteId.replace('_', ' ')} sono chiuse.</p>`;
-                return;
-            }
-            
-            const { data: votante, error: votanteError } = await supabase.from('votanti').select(`voti_${serataCorrenteId}`).eq('user_id', user.id).single();
-
-            if (votante && votante[`voti_${serataCorrenteId}`] && votante[`voti_${serataCorrenteId}`].length > 0) {
-                publicVotingArea.innerHTML = `<p style="text-align:center; font-weight:bold;">Grazie per aver votato per la ${serataCorrenteId.replace('_', ' ')}!</p>`;
+            const { data: votante } = await supabase.from('votanti').select(serataAttiva.id).eq('user_id', user.id).single();
+            if (votante && votante[serataAttiva.id] && votante[serataAttiva.id].length > 0) {
+                publicVotingArea.innerHTML = `<p style="text-align:center;">Grazie per aver votato per la ${serataAttiva.id.replace('_', ' ')}!</p>`;
             } else {
                 publicVotingArea.style.display = 'block';
-                await renderContestantList(serataCorrenteId);
+                await renderContestantList(serataAttiva.id);
             }
         };
 
         const renderContestantList = async (serataId) => {
             const { data, error } = await supabase.from('cantanti').select('nome').order('nome');
-            if (error) { 
-                alert('Errore nel caricamento dei cantanti.'); 
-                console.error(error);
-                return; 
-            }
+            if (error) return alert('Errore nel caricamento dei cantanti.');
             let html = '<ul class="contestant-list">';
             data.forEach((c, index) => {
                 html += `<li class="contestant-item"><input type="checkbox" id="contestant-${index}" value="${c.nome}" data-serata="${serataId}"><label for="contestant-${index}">${c.nome}</label></li>`;
@@ -305,66 +254,49 @@
 
         voteBtn.addEventListener('click', async () => {
             const selectedCheckboxes = contestantsContainer.querySelectorAll('input[type="checkbox"]:checked');
-            if (selectedCheckboxes.length === 0) return alert('Devi selezionare almeno un cantante.');
-            if (selectedCheckboxes.length > 3) return alert('Puoi selezionare un massimo di 3 cantanti.');
+            if (selectedCheckboxes.length === 0 || selectedCheckboxes.length > 3) return alert('Devi selezionare da 1 a 3 cantanti.');
             
             const votiSelezionati = Array.from(selectedCheckboxes).map(cb => cb.value);
             const serataId = selectedCheckboxes[0].dataset.serata;
             
-            showLoading(true);
-            voteBtn.disabled = true;
-
+            showLoading(true); voteBtn.disabled = true;
             const { data: { user } } = await supabase.auth.getUser();
-            const colonnaVoti = `voti_${serataId}`;
-            
-            const { error } = await supabase.from('votanti').upsert({ user_id: user.id, [colonnaVoti]: votiSelezionati }, { onConflict: 'user_id' });
+            const { error } = await supabase.from('votanti').upsert({ user_id: user.id, [serataId]: votiSelezionati }, { onConflict: 'user_id' });
 
             if (error) {
                 alert('Si è verificato un errore durante il salvataggio del voto.');
-                console.error(error);
                 voteBtn.disabled = false;
             } else {
                 alert('Voto registrato con successo!');
-                document.getElementById('public-voting-area').innerHTML = `<p style="text-align:center; font-weight:bold;">Grazie per aver votato per la ${serataId.replace('_', ' ')}!</p>`;
+                document.getElementById('public-voting-area').innerHTML = `<p style="text-align:center;">Grazie per aver votato!</p>`;
             }
             showLoading(false);
         });
 
-        // --- VISTA ADMIN ---
         const renderAdminControls = async () => {
             const { data: serate, error } = await supabase.from('serate_status').select('*').order('id');
-            if (error) {
-                serateStatusContainer.innerHTML = 'Errore nel caricare lo stato delle serate.';
-                return;
-            }
-
+            if (error) return serateStatusContainer.innerHTML = 'Errore nel caricare lo stato delle serate.';
             let html = '';
             serate.forEach(serata => {
-                const isOpen = serata.is_open;
-                const isActive = serata.is_active;
                 html += `
                     <div class="serata-status-item">
                         <span>
                             ${serata.id.replace('_', ' ')}: 
-                            <span class="status-badge ${isOpen ? 'status-open' : 'status-closed'}">${isOpen ? 'Aperta' : 'Chiusa'}</span>
-                            ${isActive ? '<strong> (Attiva)</strong>' : ''}
+                            <span class="status-badge ${serata.is_open ? 'status-open' : 'status-closed'}">${serata.is_open ? 'Aperta' : 'Chiusa'}</span>
+                            ${serata.is_active ? '<strong> (Attiva)</strong>' : ''}
                         </span>
                         <div>
-                            <button class="btn btn-sm btn-secondary" data-id="${serata.id}" data-action="toggle-open" style="margin-right: 5px;">${isOpen ? 'Chiudi' : 'Apri'}</button>
-                            <button class="btn btn-sm btn-primary" data-id="${serata.id}" data-action="set-active" ${isActive ? 'disabled' : ''}>Attiva</button>
+                            <button class="btn btn-sm btn-secondary" data-id="${serata.id}" data-action="toggle-open" style="margin-right: 5px;">${serata.is_open ? 'Chiudi' : 'Apri'}</button>
+                            <button class="btn btn-sm btn-primary" data-id="${serata.id}" data-action="set-active" ${serata.is_active ? 'disabled' : ''}>Attiva</button>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             });
             serateStatusContainer.innerHTML = html;
         };
 
         serateStatusContainer.addEventListener('click', async (e) => {
-            const target = e.target;
-            const action = target.dataset.action;
-            const id = target.dataset.id;
+            const { action, id } = e.target.dataset;
             if (!action || !id) return;
-
             showLoading(true);
             if (action === 'toggle-open') {
                 const { data: currentState } = await supabase.from('serate_status').select('is_open').eq('id', id).single();
@@ -376,14 +308,10 @@
             await renderAdminControls();
             showLoading(false);
         });
-        
+
         const renderAdminContestantList = async () => {
             const { data, error } = await supabase.from('cantanti').select('nome').order('nome');
-            if (error) { 
-                alert('Errore nel caricamento dei cantanti. Controlla le policy RLS su Supabase.'); 
-                console.error("Dettaglio errore:", error);
-                return; 
-            }
+            if (error) return alert("Errore caricamento cantanti. Controlla le policy RLS su Supabase come da istruzioni.");
             let html = '<div class="admin-contestant-list">';
             data.forEach(c => {
                 html += `<div class="admin-contestant-list-item"><span>${c.nome}</span><button class="btn btn-admin btn-sm btn-remove" data-name="${c.nome}">Rimuovi</button></div>`;
@@ -425,7 +353,7 @@
 
         const showResults = async (detailed = false) => {
             showLoading(true);
-            const { data, error } = await supabase.from('votanti').select('voti_serata_1, voti_serata_2');
+            const { data, error } = await supabase.from('votanti').select('serata_1, serata_2');
             if (error) {
                 showLoading(false);
                 return alert('Errore nel caricamento dei risultati.');
@@ -433,34 +361,24 @@
             
             const votes = {};
             data.forEach(row => {
-                (row.voti_serata_1 || []).forEach(nome => {
+                (row.serata_1 || []).forEach(nome => {
                     if (!votes[nome]) votes[nome] = { s1: 0, s2: 0, total: 0 };
-                    votes[nome].s1++;
-                    votes[nome].total++;
+                    votes[nome].s1++; votes[nome].total++;
                 });
-                (row.voti_serata_2 || []).forEach(nome => {
+                (row.serata_2 || []).forEach(nome => {
                     if (!votes[nome]) votes[nome] = { s1: 0, s2: 0, total: 0 };
-                    votes[nome].s2++;
-                    votes[nome].total++;
+                    votes[nome].s2++; votes[nome].total++;
                 });
             });
 
             const sorted = Object.entries(votes).sort(([, a], [, b]) => b.total - a.total);
-            
             let resultsMessage = detailed ? '--- Risultati Dettagliati ---\n\n' : '--- Classifica Generale ---\n\n';
-            if (sorted.length === 0) {
-                 resultsMessage = 'Nessun voto è stato ancora registrato.';
-            } else {
-                sorted.forEach(([nome, conteggio], index) => {
-                    if (detailed) {
-                        resultsMessage += `${nome}: ${conteggio.total} voti (S1: ${conteggio.s1}, S2: ${conteggio.s2})\n`;
-                    } else {
-                        resultsMessage += `${index + 1}. ${nome}: ${conteggio.total} voti\n`;
-                    }
-                });
-            }
+            sorted.forEach(([nome, conteggio], index) => {
+                resultsMessage += detailed ? `${nome}: ${conteggio.total} voti (S1: ${conteggio.s1}, S2: ${conteggio.s2})\n` : `${index + 1}. ${nome}: ${conteggio.total} voti\n`;
+            });
+
             showLoading(false);
-            alert(resultsMessage);
+            alert(resultsMessage || 'Nessun voto registrato.');
         };
         
         generalRankingBtn.addEventListener('click', () => showResults(false));
