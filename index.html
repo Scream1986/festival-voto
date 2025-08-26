@@ -76,24 +76,22 @@
         }
         .btn:active { transform: scale(0.98); }
         .btn:disabled { background-color: var(--disabled-color) !important; color: #666 !important; cursor: not-allowed; }
-        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; margin: 0; width: auto; }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; margin: 0; width: auto; display: inline-block; }
         .btn-primary { background-color: var(--button-primary-bg); color: var(--button-primary-text); }
         .btn-secondary { background-color: var(--secondary-color); color: white; }
         .btn-admin { background-color: var(--button-admin-bg); color: white; }
         .btn-success { background-color: var(--button-success-bg); color: white; }
         
         .admin-controls { border: 1px solid #eee; padding: 1rem; margin-bottom: 1.5rem; border-radius: 8px; }
-        .admin-controls h3 { margin-bottom: 1rem; }
         .contestant-list { list-style-type: none; padding: 0; }
         .contestant-item { display: flex; align-items: center; padding: 0.5rem 0; }
-        .contestant-item input[type="checkbox"] { width: 1.5em; height: 1.5em; margin-right: 1rem; }
+        .contestant-item input[type="checkbox"] { width: 1.5em; height: 1.5em; margin-right: 1rem; flex-shrink: 0; }
         .contestant-item label { font-weight: 500; flex-grow: 1; margin: 0; }
 
         #loading-spinner { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.8); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; }
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--button-primary-bg); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .message-box { text-align: center; padding: 10px; border-radius: 5px; font-weight: bold; margin-bottom: 1rem; display: none; }
-
+        
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 2000; }
         .modal-box { background: white; padding: 2rem; border-radius: 12px; text-align: center; max-width: 90%; width: 320px; }
         .modal-box p { margin: 0 0 1.5rem 0; }
@@ -124,7 +122,6 @@
             <div id="login-screen" class="screen active">
                 <h2>Benvenuto al Contest</h2>
                 <p style="text-align: center; color: #666;">Inserisci la tua Email per votare, oppure il Codice Admin per gestire l'evento.</p>
-                <div id="login-message" class="message-box"></div>
                 <div class="form-group">
                     <label for="user-input">La tua Email o Codice Admin</label>
                     <input type="text" id="user-input" placeholder="email@example.com oppure il codice" autocomplete="off">
@@ -135,7 +132,6 @@
             <div id="otp-screen" class="screen">
                 <h2>Verifica Codice</h2>
                 <p id="otp-info" style="text-align: center; color: #666;">Abbiamo inviato un codice a <strong id="otp-email"></strong>. Inseriscilo qui sotto.</p>
-                <div id="otp-message" class="message-box"></div>
                 <div class="form-group">
                     <label for="otp-input">Codice di verifica</label>
                     <input type="text" id="otp-input" placeholder="123456" autocomplete="off">
@@ -178,9 +174,12 @@
             <div id="manage-screen" class="screen">
                 <h2>Gestione Partecipanti</h2>
                 <div id="admin-contestant-list-container"></div>
-                <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
-                    <input type="text" id="new-contestant-name" placeholder="Nome nuovo partecipante" style="flex-grow: 1;">
-                    <button id="add-contestant-btn" class="btn btn-primary btn-sm">Aggiungi</button>
+                <div class="admin-controls" style="margin-top: 1.5rem;">
+                    <h3>Aggiungi Partecipante</h3>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="new-contestant-name" placeholder="Nome nuovo partecipante" style="flex-grow: 1;">
+                        <button id="add-contestant-btn" class="btn btn-primary btn-sm" style="margin-top: 0;">Aggiungi</button>
+                    </div>
                 </div>
                 <button id="back-to-admin-btn" class="btn btn-secondary" style="margin-top: 2rem;">Torna al Pannello</button>
             </div>
@@ -205,21 +204,14 @@
             main: document.getElementById('main-screen'),
             manage: document.getElementById('manage-screen')
         };
-        const loginMessage = document.getElementById('login-message');
-        const otpMessage = document.getElementById('otp-message');
         
         let userEmailForVerification = '';
-        let serateStatusCache = []; // Cache per lo stato delle serate
+        let serateStatusCache = [];
 
         const showLoading = (isLoading) => { loadingSpinner.style.display = isLoading ? 'flex' : 'none'; };
         const navigateTo = (screenId) => {
             Object.values(screens).forEach(s => s.classList.remove('active'));
             if (screens[screenId]) screens[screenId].classList.add('active');
-        };
-        const showMessage = (element, message, isError = false) => {
-            element.textContent = message;
-            element.style.color = isError ? '#dc3545' : '#28a745';
-            element.style.display = message ? 'block' : 'none';
         };
         const customAlert = (message) => {
             document.getElementById('custom-alert-message').innerHTML = message;
@@ -230,14 +222,45 @@
             };
         };
 
+        // --- NUOVA FUNZIONE DI POPOLAMENTO DB ---
+        const seedDatabase = async () => {
+            const initialContestants = [
+                "Letizia Cau", "Michele Tuveri", "Cristiana Carta", "Benedetta Cau", "Davide Muscas",
+                "Susanna Fanari", "Ivan Tuveri", "Agata Usai", "Naima Chouaye", "Aurora Pontis",
+                "Zahra Chouaye", "Loretta Pichiri", "Ivana Nocco", "Julietta Desogus",
+                "Camilla Cabriolu", "Alice Mascia", "Alberto Atzori", "Cristina Cherchi"
+            ];
+
+            const { data, error } = await supabase.from('cantanti').select('nome').limit(1);
+
+            if (error) {
+                console.error("Errore nel controllo della tabella cantanti:", error);
+                return;
+            }
+
+            if (data.length === 0) {
+                console.log("Tabella 'cantanti' vuota. Popolamento in corso...");
+                const contestantsToInsert = initialContestants.map(name => ({ nome: name }));
+                
+                const { error: insertError } = await supabase.from('cantanti').insert(contestantsToInsert);
+                
+                if (insertError) {
+                    customAlert("Errore nel popolamento automatico dei cantanti.");
+                    console.error("Errore inserimento:", insertError);
+                } else {
+                    console.log("Popolamento completato.");
+                }
+            }
+        };
+
+
         const checkSession = async () => {
             showLoading(true);
+            await seedDatabase(); // Esegui il controllo e popolamento all'avvio
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
-                // Se c'è una sessione utente, va alla vista pubblica
                 await setupUIForUser(session.user);
             } else {
-                // Altrimenti, rimane sulla pagina di login
                 navigateTo('login');
             }
             showLoading(false);
@@ -257,25 +280,18 @@
 
         document.getElementById('login-btn').addEventListener('click', async () => {
             const input = document.getElementById('user-input').value.trim();
-            if (!input) {
-                showMessage(loginMessage, 'Il campo non può essere vuoto.', true);
-                return;
-            }
+            if (!input) { customAlert('Il campo non può essere vuoto.'); return; }
             
-            // --- LOGICA DI ACCESSO MODIFICATA ---
             if (input === ADMIN_CODE) {
-                // Se è il codice admin, mostra la vista admin
                 await setupAdminView();
                 navigateTo('main');
                 return;
             }
 
-            // Altrimenti, tratta l'input come un'email per un votante
             showLoading(true);
-            showMessage(loginMessage, '');
             const { error } = await supabase.auth.signInWithOtp({ email: input });
             if (error) {
-                showMessage(loginMessage, 'Email non valida o errore del server.', true);
+                customAlert('Email non valida o errore del server.');
             } else {
                 userEmailForVerification = input;
                 document.getElementById('otp-email').textContent = userEmailForVerification;
@@ -286,21 +302,14 @@
 
         document.getElementById('otp-btn').addEventListener('click', async () => {
             const otp = document.getElementById('otp-input').value.trim();
-            if (!otp) {
-                showMessage(otpMessage, 'Inserisci il codice ricevuto.', true);
-                return;
-            }
+            if (!otp) { customAlert('Inserisci il codice ricevuto.'); return; }
             showLoading(true);
-            showMessage(otpMessage, '');
             const { error } = await supabase.auth.verifyOtp({
                 email: userEmailForVerification,
                 token: otp,
                 type: 'email'
             });
-            if (error) {
-                showMessage(otpMessage, 'Codice non valido o scaduto. Riprova.', true);
-            }
-            // Se la verifica ha successo, onAuthStateChange gestirà la navigazione
+            if (error) { customAlert('Codice non valido o scaduto. Riprova.'); }
             showLoading(false);
         });
 
@@ -341,13 +350,8 @@
 
             if (selectedSerata) {
                 const serataName = selectedSerata.id === 'serata_1' ? 'Serata 1' : 'Serata 2';
-                if (selectedSerata.is_open) {
-                    toggleBtn.textContent = `Chiudi Votazioni per ${serataName}`;
-                    toggleBtn.className = 'btn btn-admin';
-                } else {
-                    toggleBtn.textContent = `Apri Votazioni per ${serataName}`;
-                    toggleBtn.className = 'btn btn-success';
-                }
+                toggleBtn.textContent = selectedSerata.is_open ? `Chiudi Votazioni per ${serataName}` : `Apri Votazioni per ${serataName}`;
+                toggleBtn.className = selectedSerata.is_open ? 'btn btn-admin' : 'btn btn-success';
             } else {
                 toggleBtn.textContent = 'Stato non disponibile';
                 toggleBtn.className = 'btn btn-secondary';
@@ -368,7 +372,6 @@
             const serataToToggle = serateStatusCache.find(s => s.id === selectedSerataId);
             
             if (!serataToToggle) return;
-
             const newStatus = !serataToToggle.is_open;
             
             showLoading(true);
@@ -417,7 +420,7 @@
             const userHasVoted = userData && userData[`voti_${serataId}`] && userData[`voti_${serataId}`].length > 0;
 
             if (userHasVoted) {
-                votingArea.innerHTML = `<p style="text-align:center;">Grazie per aver votato per la ${serataName}!</p>`;
+                votingArea.innerHTML = `<p style="text-align:center; font-weight:bold;">Grazie per aver votato per la ${serataName}!</p>`;
             } else {
                 let cardHTML = `<p style="text-align:center; font-size: 0.9em; color: #666;">Puoi esprimere fino a 3 preferenze.</p><ul class="contestant-list">`;
                 contestants.forEach((c, index) => {
@@ -458,11 +461,7 @@
             document.getElementById('admin-view').style.display = 'none';
         });
 
-        document.getElementById('logout-btn-public').addEventListener('click', async () => {
-            showLoading(true);
-            await supabase.auth.signOut();
-            showLoading(false);
-        });
+        document.getElementById('logout-btn-public').addEventListener('click', async () => await supabase.auth.signOut());
 
         // --- Gestione Partecipanti ---
         document.getElementById('manage-contestants-btn').addEventListener('click', async () => {
@@ -472,10 +471,12 @@
         document.getElementById('back-to-admin-btn').addEventListener('click', () => navigateTo('main'));
         
         const renderAdminContestantList = async () => {
+            showLoading(true);
             const { data, error } = await supabase.from('cantanti').select('nome').order('nome');
+            showLoading(false);
             const container = document.getElementById('admin-contestant-list-container');
             if (error) { container.innerHTML = '<p>Errore nel caricamento.</p>'; return; }
-            let html = data.map(c => `<div style="display:flex; justify-content:space-between; align-items:center; padding: 0.5rem; border-bottom: 1px solid #eee;"><span>${c.nome}</span><button class="btn btn-admin btn-sm btn-remove" data-name="${c.nome}">Rimuovi</button></div>`).join('');
+            let html = data.map(c => `<div style="display:flex; justify-content:space-between; align-items:center; padding: 0.75rem; border-bottom: 1px solid #eee;"><span>${c.nome}</span><button class="btn btn-admin btn-sm btn-remove" data-name="${c.nome}">Rimuovi</button></div>`).join('');
             container.innerHTML = html || '<p style="text-align:center; color:#666;">Nessun partecipante.</p>';
         };
 
@@ -493,36 +494,35 @@
         document.getElementById('admin-contestant-list-container').addEventListener('click', async (e) => {
             if (e.target.classList.contains('btn-remove')) {
                 const nameToRemove = e.target.dataset.name;
-                // Usiamo una conferma migliore del `window.confirm`
-                customAlert(`Sei sicuro di voler rimuovere ${nameToRemove}? <br><button id="confirm-delete" class="btn btn-admin" style="margin-top:1rem;">Conferma</button>`);
-                document.getElementById('confirm-delete').onclick = async () => {
-                    document.getElementById('custom-alert-modal').style.display = 'none';
+                if(confirm(`Sei sicuro di voler rimuovere ${nameToRemove}?`)){
                     showLoading(true);
                     await supabase.from('cantanti').delete().eq('nome', nameToRemove);
-                    showLoading(false);
                     await renderAdminContestantList();
-                };
+                    showLoading(false);
+                }
             }
         });
 
         // --- Visualizzazione Risultati ---
         const showResults = async (detailed) => {
             showLoading(true);
-            const { data, error } = await supabase.from('votanti').select('voti_serata_1, voti_serata_2');
+            const { data: votiData, error } = await supabase.from('votanti').select('voti_serata_1, voti_serata_2');
             if (error) {
                 showLoading(false);
                 return customAlert('Errore nel caricamento dei risultati.');
             }
-            const votes = {};
             const { data: cantanti, error: cantantiError } = await supabase.from('cantanti').select('nome');
-            if (cantantiError) { /* Gestisci errore */ }
+            if (cantantiError) { 
+                showLoading(false);
+                return customAlert('Errore nel caricamento dei cantanti.');
+             }
             
-            // Inizializza tutti i cantanti a 0 voti
+            const votes = {};
             cantanti.forEach(c => {
                 votes[c.nome] = { s1: 0, s2: 0, total: 0 };
             });
 
-            data.forEach(row => {
+            votiData.forEach(row => {
                 (row.voti_serata_1 || []).forEach(nome => {
                     if (votes[nome]) {
                         votes[nome].s1++;
