@@ -6,7 +6,7 @@
     <title>Vocal Hub Contest</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --header-bg: #000; --button-primary-bg: #ffc107; --button-primary-text: #000; --button-admin-bg: #dc3545; --secondary-color: #6c757d; --light-color: #f8f9fa; }
+        :root { --header-bg: #000; --button-primary-bg: #ffc107; --button-primary-text: #000; --button-admin-bg: #dc3545; --button-danger-bg: #b30000; --secondary-color: #6c757d; --light-color: #f8f9fa; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; background-color: var(--light-color); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1rem 0; }
         .app-container { width: 100%; max-width: 480px; background-color: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); overflow: hidden; }
         header { background-color: var(--header-bg); color: white; text-align: center; padding: 0.5rem; }
@@ -30,6 +30,7 @@
         .btn-primary { background-color: var(--button-primary-bg); color: var(--button-primary-text); }
         .btn-secondary { background-color: var(--secondary-color); color: white; }
         .btn-admin { background-color: var(--button-admin-bg); color: white; }
+        .btn-danger { background-color: var(--button-danger-bg); color: white; }
         .admin-controls { border: 1px solid #eee; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
         .admin-controls h3 { margin-bottom: 1rem; }
         .admin-contestant-list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; border-bottom: 1px solid #eee; }
@@ -74,6 +75,7 @@
                         <h3>Azioni e Risultati</h3>
                         <button id="manage-contestants-btn" class="btn btn-secondary">Gestisci Partecipanti</button>
                         <button id="general-ranking-btn" class="btn btn-primary">Classifica Generale</button>
+                        <button id="reset-votes-btn" class="btn btn-danger">Reset Voti e Utenti</button>
                     </div>
                     <button id="logout-btn-admin" class="btn btn-admin" style="margin-top: 2rem;">Esci</button>
                 </div>
@@ -137,6 +139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const activeEventSelect = document.getElementById('active-event-select');
     const addContestantBtn = document.getElementById('add-contestant-btn');
     const backToAdminBtn = document.getElementById('back-to-admin-btn');
+    const resetVotesBtn = document.getElementById('reset-votes-btn');
     
     // --- FUNZIONI DI BASE ---
     const navigateTo = (screenId) => {
@@ -184,6 +187,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     const initializeVotes = () => {
+        if (!state.votes_serata_1) state.votes_serata_1 = {};
+        if (!state.votes_serata_2) state.votes_serata_2 = {};
         state.contestants.forEach(name => {
             if (state.votes_serata_1[name] === undefined) state.votes_serata_1[name] = 0;
             if (state.votes_serata_2[name] === undefined) state.votes_serata_2[name] = 0;
@@ -193,7 +198,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const renderUI = () => {
         if (!currentUser) return; // Non renderizzare se non c'è un utente
-        if (currentUser === 'ADMIN') {
+        if (currentUser.toUpperCase() === 'ROB025490') {
             adminView.style.display = 'block';
             publicView.style.display = 'none';
             activeEventSelect.value = state.activeEvent;
@@ -255,8 +260,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     loginBtn.addEventListener('click', async () => {
         if (loginStage === 'email') {
             const input = userEmailInput.value.trim();
-            if (input.toUpperCase() === 'ADMIN') {
-                currentUser = 'ADMIN';
+            if (input.toUpperCase() === 'ROB025490') {
+                currentUser = 'ROB025490';
                 navigateTo('main');
                 renderUI();
                 return;
@@ -270,8 +275,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const tempEmail = input.toLowerCase();
             const code = Math.floor(100000 + Math.random() * 900000).toString();
             
-            // Per ora, il codice viene mostrato nella console.
-            // Apri gli strumenti per sviluppatori (F12) per vederlo.
             console.log(`Email: ${tempEmail}, Codice di accesso: ${code}`);
             alert(`Abbiamo generato un codice. Per semplicità, trovalo nella console del browser (premi F12 e vai sulla scheda 'Console') e inseriscilo qui sotto.`);
 
@@ -361,6 +364,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         navigateTo('manage');
     });
 
+    resetVotesBtn.addEventListener('click', async () => {
+        if (confirm("ATTENZIONE! Sei sicuro di voler azzerare TUTTI i voti e resettare TUTTI gli utenti votanti? L'azione è irreversibile.")) {
+            state.votes_serata_1 = {};
+            state.votes_serata_2 = {};
+            state.user_votes = {};
+            initializeVotes(); // Rinizializza i voti a 0 per ogni partecipante
+            await saveState();
+            alert("Voti e utenti sono stati azzerati con successo.");
+        }
+    });
 
     generalRankingBtn.addEventListener('click', () => {
         const totalVotes = {};
@@ -394,7 +407,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const nameToRemove = e.target.dataset.name;
             if (confirm(`Sei sicuro di voler rimuovere ${nameToRemove}?`)) {
                 state.contestants = state.contestants.filter(name => name !== nameToRemove);
-                // Non cancelliamo i voti per mantenere lo storico
                 await saveState();
                 renderAdminContestantList();
             }
