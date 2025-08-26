@@ -207,6 +207,7 @@
         
         let userEmailForVerification = '';
         let serateStatusCache = [];
+        let contestantsCache = []; // Variabile per la cache dei cantanti
 
         const showLoading = (isLoading) => { loadingSpinner.style.display = isLoading ? 'flex' : 'none'; };
         const navigateTo = (screenId) => {
@@ -222,7 +223,6 @@
             };
         };
 
-        // --- NUOVA FUNZIONE DI POPOLAMENTO DB ---
         const seedDatabase = async () => {
             const initialContestants = [
                 "Letizia Cau", "Michele Tuveri", "Cristiana Carta", "Benedetta Cau", "Davide Muscas",
@@ -230,33 +230,18 @@
                 "Zahra Chouaye", "Loretta Pichiri", "Ivana Nocco", "Julietta Desogus",
                 "Camilla Cabriolu", "Alice Mascia", "Alberto Atzori", "Cristina Cherchi"
             ];
-
             const { data, error } = await supabase.from('cantanti').select('nome').limit(1);
-
-            if (error) {
-                console.error("Errore nel controllo della tabella cantanti:", error);
-                return;
-            }
-
+            if (error) { console.error("Errore nel controllo della tabella cantanti:", error); return; }
             if (data.length === 0) {
-                console.log("Tabella 'cantanti' vuota. Popolamento in corso...");
                 const contestantsToInsert = initialContestants.map(name => ({ nome: name }));
-                
                 const { error: insertError } = await supabase.from('cantanti').insert(contestantsToInsert);
-                
-                if (insertError) {
-                    customAlert("Errore nel popolamento automatico dei cantanti.");
-                    console.error("Errore inserimento:", insertError);
-                } else {
-                    console.log("Popolamento completato.");
-                }
+                if (insertError) { console.error("Errore inserimento:", insertError); }
             }
         };
 
-
         const checkSession = async () => {
             showLoading(true);
-            await seedDatabase(); // Esegui il controllo e popolamento all'avvio
+            await seedDatabase();
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
                 await setupUIForUser(session.user);
@@ -273,26 +258,21 @@
                 navigateTo('login');
                 document.getElementById('user-input').value = '';
                 document.getElementById('otp-input').value = '';
-                document.getElementById('admin-view').style.display = 'none';
-                document.getElementById('public-view').style.display = 'none';
             }
         });
 
         document.getElementById('login-btn').addEventListener('click', async () => {
             const input = document.getElementById('user-input').value.trim();
             if (!input) { customAlert('Il campo non può essere vuoto.'); return; }
-            
             if (input === ADMIN_CODE) {
                 await setupAdminView();
                 navigateTo('main');
                 return;
             }
-
             showLoading(true);
             const { error } = await supabase.auth.signInWithOtp({ email: input });
-            if (error) {
-                customAlert('Email non valida o errore del server.');
-            } else {
+            if (error) { customAlert('Email non valida o errore del server.'); }
+            else {
                 userEmailForVerification = input;
                 document.getElementById('otp-email').textContent = userEmailForVerification;
                 navigateTo('otp');
@@ -304,11 +284,7 @@
             const otp = document.getElementById('otp-input').value.trim();
             if (!otp) { customAlert('Inserisci il codice ricevuto.'); return; }
             showLoading(true);
-            const { error } = await supabase.auth.verifyOtp({
-                email: userEmailForVerification,
-                token: otp,
-                type: 'email'
-            });
+            const { error } = await supabase.auth.verifyOtp({ email: userEmailForVerification, token: otp, type: 'email' });
             if (error) { customAlert('Codice non valido o scaduto. Riprova.'); }
             showLoading(false);
         });
@@ -322,12 +298,27 @@
             showLoading(false);
         };
 
-        // --- VISTA ADMIN ---
+        // --- VISTA ADMIN (MODIFICATA) ---
+        const fetchAndCacheContestants = async () => {
+            const { data, error } = await supabase.from('cantanti').select('nome');
+            if (error) {
+                console.error("Errore critico nel pre-caricamento dei cantanti:", error);
+                customAlert("Attenzione: non è stato possibile caricare l'elenco dei cantanti. Le funzioni di classifica potrebbero non essere disponibili.");
+                contestantsCache = [];
+            } else {
+                contestantsCache = data;
+                console.log("Elenco cantanti caricato e salvato in cache.");
+            }
+        };
+
         const setupAdminView = async () => {
+            showLoading(true);
             document.getElementById('admin-view').style.display = 'block';
             document.getElementById('public-view').style.display = 'none';
             await fetchAndCacheSerateStatus();
+            await fetchAndCacheContestants(); // Carica i cantanti una sola volta
             updateAdminControls();
+            showLoading(false);
         };
         
         const fetchAndCacheSerateStatus = async () => {
@@ -344,25 +335,16 @@
             const selectedSerataId = document.getElementById('active-event-select').value;
             const selectedSerata = serateStatusCache.find(s => s.id === selectedSerataId);
             const anySerataOpen = serateStatusCache.some(s => s.is_open);
-            
             const toggleBtn = document.getElementById('toggle-voting-btn');
             const manageBtn = document.getElementById('manage-contestants-btn');
-
             if (selectedSerata) {
                 const serataName = selectedSerata.id === 'serata_1' ? 'Serata 1' : 'Serata 2';
                 toggleBtn.textContent = selectedSerata.is_open ? `Chiudi Votazioni per ${serataName}` : `Apri Votazioni per ${serataName}`;
                 toggleBtn.className = selectedSerata.is_open ? 'btn btn-admin' : 'btn btn-success';
-            } else {
-                toggleBtn.textContent = 'Stato non disponibile';
-                toggleBtn.className = 'btn btn-secondary';
             }
-            
             const otherSerataIsOpen = serateStatusCache.some(s => s.is_open && s.id !== selectedSerataId);
             toggleBtn.disabled = otherSerataIsOpen && (selectedSerata ? !selectedSerata.is_open : true);
-            toggleBtn.title = toggleBtn.disabled ? "Chiudi l'altra serata prima di aprirne una nuova." : "";
-
             manageBtn.disabled = anySerataOpen;
-            manageBtn.title = anySerataOpen ? "Chiudi le votazioni per gestire i partecipanti." : "";
         };
 
         document.getElementById('active-event-select').addEventListener('change', updateAdminControls);
@@ -370,16 +352,12 @@
         document.getElementById('toggle-voting-btn').addEventListener('click', async () => {
             const selectedSerataId = document.getElementById('active-event-select').value;
             const serataToToggle = serateStatusCache.find(s => s.id === selectedSerataId);
-            
             if (!serataToToggle) return;
             const newStatus = !serataToToggle.is_open;
-            
             showLoading(true);
             const { error } = await supabase.from('serate_status').update({ is_open: newStatus }).eq('id', selectedSerataId);
-            
-            if (error) {
-                customAlert(`Errore nell'aggiornare la ${selectedSerataId}.`);
-            } else {
+            if (error) { customAlert(`Errore nell'aggiornare la ${selectedSerataId}.`); }
+            else {
                 await fetchAndCacheSerateStatus();
                 updateAdminControls();
             }
@@ -391,34 +369,25 @@
             document.getElementById('public-view').style.display = 'block';
             document.getElementById('admin-view').style.display = 'none';
             document.getElementById('public-welcome').textContent = `Ciao, ${user.email.split('@')[0]}!`;
-
             const { data: serateStatus, error: serateError } = await supabase.from('serate_status').select('*');
             if (serateError) return customAlert("Errore nel caricare le serate.");
-
             const { data: userData } = await supabase.from('votanti').select('voti_serata_1, voti_serata_2').eq('user_id', user.id).single();
             const { data: contestants, error: contestantsError } = await supabase.from('cantanti').select('nome').order('nome');
             if (contestantsError) return customAlert("Errore nel caricare i cantanti.");
-
             const votingArea = document.getElementById('public-voting-area');
             const votingStatusDiv = document.getElementById('public-voting-status');
-            votingArea.innerHTML = '';
-
             const openSerata = serateStatus.find(s => s.is_open);
-
             if (!openSerata) {
                 votingStatusDiv.textContent = 'VOTAZIONI CHIUSE';
                 votingStatusDiv.style.color = 'red';
                 votingArea.innerHTML = '<p style="text-align:center;">Al momento non ci sono votazioni aperte.</p>';
                 return;
             }
-
             const serataId = openSerata.id;
             const serataName = serataId === 'serata_1' ? 'Serata 1' : 'Serata 2';
             votingStatusDiv.textContent = `VOTAZIONI APERTE - ${serataName}`;
             votingStatusDiv.style.color = 'green';
-            
             const userHasVoted = userData && userData[`voti_${serataId}`] && userData[`voti_${serataId}`].length > 0;
-
             if (userHasVoted) {
                 votingArea.innerHTML = `<p style="text-align:center; font-weight:bold;">Grazie per aver votato per la ${serataName}!</p>`;
             } else {
@@ -428,7 +397,6 @@
                 });
                 cardHTML += `</ul><button id="vote-btn" class="btn btn-primary">Invia Voto per ${serataName}</button>`;
                 votingArea.innerHTML = cardHTML;
-                
                 document.getElementById('vote-btn').addEventListener('click', () => handleVote(user, serataId));
             }
         };
@@ -441,14 +409,11 @@
             }
             const votiSelezionati = Array.from(selectedCheckboxes).map(cb => cb.value);
             showLoading(true);
-            
             const colonnaVoti = `voti_${serataId}`;
             const { error } = await supabase.from('votanti').upsert({ user_id: user.id, [colonnaVoti]: votiSelezionati }, { onConflict: 'user_id' });
-            
             showLoading(false);
-            if (error) {
-                customAlert('Si è verificato un errore durante il salvataggio del voto.');
-            } else {
+            if (error) { customAlert('Si è verificato un errore durante il salvataggio del voto.'); }
+            else {
                 customAlert('Voto registrato con successo!');
                 await setupPublicView(user);
             }
@@ -456,11 +421,10 @@
 
         // --- Logout ---
         document.getElementById('logout-btn-admin').addEventListener('click', () => {
+            contestantsCache = []; // Svuota la cache al logout
             navigateTo('login');
             document.getElementById('user-input').value = '';
-            document.getElementById('admin-view').style.display = 'none';
         });
-
         document.getElementById('logout-btn-public').addEventListener('click', async () => await supabase.auth.signOut());
 
         // --- Gestione Partecipanti ---
@@ -486,9 +450,15 @@
             if (!newName) return;
             showLoading(true);
             const { error } = await supabase.from('cantanti').insert({ nome: newName });
-            showLoading(false);
-            if (error) { customAlert('Errore: cantante già presente o problema di connessione.'); }
-            else { nameInput.value = ''; await renderAdminContestantList(); }
+            if (error) { 
+                showLoading(false);
+                customAlert('Errore: cantante già presente o problema di connessione.'); 
+            } else { 
+                nameInput.value = ''; 
+                await fetchAndCacheContestants(); // Aggiorna la cache
+                await renderAdminContestantList();
+                showLoading(false);
+            }
         });
 
         document.getElementById('admin-contestant-list-container').addEventListener('click', async (e) => {
@@ -497,13 +467,14 @@
                 if(confirm(`Sei sicuro di voler rimuovere ${nameToRemove}?`)){
                     showLoading(true);
                     await supabase.from('cantanti').delete().eq('nome', nameToRemove);
+                    await fetchAndCacheContestants(); // Aggiorna la cache
                     await renderAdminContestantList();
                     showLoading(false);
                 }
             }
         });
 
-        // --- Visualizzazione Risultati ---
+        // --- Visualizzazione Risultati (MODIFICATA) ---
         const showResults = async (detailed) => {
             showLoading(true);
             const { data: votiData, error } = await supabase.from('votanti').select('voti_serata_1, voti_serata_2');
@@ -511,11 +482,12 @@
                 showLoading(false);
                 return customAlert('Errore nel caricamento dei risultati.');
             }
-            const { data: cantanti, error: cantantiError } = await supabase.from('cantanti').select('nome');
-            if (cantantiError) { 
+
+            if (contestantsCache.length === 0) {
                 showLoading(false);
-                return customAlert('Errore nel caricamento dei cantanti.');
-             }
+                return customAlert("Elenco cantanti non disponibile. Prova a ricaricare o rientrare nel pannello admin.");
+            }
+            const cantanti = contestantsCache;
             
             const votes = {};
             cantanti.forEach(c => {
