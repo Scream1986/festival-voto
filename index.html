@@ -36,6 +36,10 @@
         .admin-contestant-list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; border-bottom: 1px solid #eee; }
         .add-contestant-form { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
         #voting-status { text-align: center; padding: 10px; border-radius: 5px; font-weight: bold; margin-bottom: 1rem; }
+        .vote-summary { text-align: left; background-color: #f8f9fa; padding: 1rem; border-radius: 8px; margin-top: 1rem;}
+        .vote-summary h4 { margin-top: 0; text-align: center; }
+        .vote-summary ul { padding-left: 20px; margin-top: 0.5rem; }
+        .vote-summary p { font-style: italic; color: #6c757d; }
     </style>
 </head>
 <body>
@@ -75,6 +79,7 @@
                         <h3>Azioni e Risultati</h3>
                         <button id="manage-contestants-btn" class="btn btn-secondary">Gestisci Partecipanti</button>
                         <button id="view-voters-btn" class="btn btn-secondary">Visualizza Votanti</button>
+                        <button id="view-event-ranking-btn" class="btn btn-secondary">Classifica Serata</button>
                         <button id="general-ranking-btn" class="btn btn-primary">Classifica Generale</button>
                         <button id="reset-votes-btn" class="btn btn-danger">Reset Voti e Utenti</button>
                     </div>
@@ -84,11 +89,8 @@
                 <div id="public-view" style="display: none;">
                     <h2 id="public-welcome">Area Votazione</h2>
                     <div id="voting-status"></div>
-                    <div id="public-voting-area">
-                        <p>Puoi esprimere fino a <strong>3 preferenze</strong> per la serata in corso.</p>
-                        <div id="contestants-container"></div>
-                        <button id="vote-btn" class="btn btn-primary">Vota le tue 3 preferenze</button>
-                    </div>
+                    <div id="voting-area-container">
+                         </div>
                     <button id="logout-btn-public" class="btn btn-secondary">Esci</button>
                 </div>
             </div>
@@ -131,11 +133,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const userCodeInput = document.getElementById('user-code');
     const codeEntryGroup = document.getElementById('code-entry-group');
     const logoutButtons = document.querySelectorAll('#logout-btn-admin, #logout-btn-public');
-    const contestantsContainer = document.getElementById('contestants-container');
+    const votingAreaContainer = document.getElementById('voting-area-container');
     const adminContestantListContainer = document.getElementById('admin-contestant-list-container');
-    const voteBtn = document.getElementById('vote-btn');
     const toggleVotingBtn = document.getElementById('toggle-voting-btn');
     const generalRankingBtn = document.getElementById('general-ranking-btn');
+    const eventRankingBtn = document.getElementById('view-event-ranking-btn');
     const manageContestantsBtn = document.getElementById('manage-contestants-btn');
     const activeEventSelect = document.getElementById('active-event-select');
     const addContestantBtn = document.getElementById('add-contestant-btn');
@@ -200,7 +202,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             adminView.style.display = 'none';
             publicView.style.display = 'block';
-            document.getElementById('public-welcome').textContent = `Ciao votante!`;
+            document.getElementById('public-welcome').textContent = `Ciao ${currentUser}!`;
         }
         updateVotingStatus();
         renderAdminContestantList();
@@ -208,31 +210,65 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const updateVotingStatus = () => {
         const statusDiv = document.getElementById('voting-status');
-        const votingArea = document.getElementById('public-voting-area');
         const activeEventName = state.activeEvent.replace('_', ' ');
+        // Admin
         toggleVotingBtn.textContent = state.votingOpen ? `Chiudi Votazioni per ${activeEventName}` : `Apri Votazioni per ${activeEventName}`;
         toggleVotingBtn.className = `btn ${state.votingOpen ? 'btn-admin' : 'btn-secondary'}`;
-        const userHasVoted = state.user_votes[currentUser]?.includes(state.activeEvent);
+        
+        // Pubblico
+        const userHasVotedForCurrentEvent = state.user_votes[currentUser]?.[state.activeEvent];
+        
         if (state.votingOpen) {
             statusDiv.textContent = `VOTAZIONI APERTE - ${activeEventName}`;
             statusDiv.style.color = 'green';
-            if (userHasVoted) {
-                votingArea.innerHTML = `<p style="text-align:center; font-weight:bold;">Grazie per aver votato per la ${activeEventName}!</p>`;
+            if (userHasVotedForCurrentEvent) {
+                renderVoteSummary();
             } else {
-                votingArea.style.display = 'block';
-                renderPublicContestantList();
+                renderPublicVotingArea();
             }
         } else {
             statusDiv.textContent = 'VOTAZIONI CHIUSE';
             statusDiv.style.color = 'red';
-            votingArea.style.display = 'none';
+            renderVoteSummary();
         }
     };
     
-    const renderPublicContestantList = () => {
-        contestantsContainer.innerHTML = `<ul class="contestant-list">${state.contestants.map((name, index) => 
-            `<li class="contestant-item"><input type="checkbox" id="c-${index}" value="${name}"><label for="c-${index}">${name}</label></li>`
-        ).join('')}</ul>`;
+    const renderPublicVotingArea = () => {
+        let html = `
+            <div id="public-voting-area">
+                <p>Puoi esprimere fino a <strong>3 preferenze</strong> per la serata in corso.</p>
+                <div id="contestants-container">
+                    <ul class="contestant-list">${state.contestants.map((name, index) => 
+                        `<li class="contestant-item"><input type="checkbox" id="c-${index}" value="${name}"><label for="c-${index}">${name}</label></li>`
+                    ).join('')}</ul>
+                </div>
+                <button id="vote-btn" class="btn btn-primary">Vota le tue 3 preferenze</button>
+            </div>`;
+        votingAreaContainer.innerHTML = html;
+        // Aggiungi event listener al nuovo bottone
+        document.getElementById('vote-btn').addEventListener('click', handleVote);
+    };
+
+    const renderVoteSummary = () => {
+        const votesS1 = state.user_votes[currentUser]?.serata_1;
+        const votesS2 = state.user_votes[currentUser]?.serata_2;
+
+        let summaryS1 = votesS1 
+            ? `<ul>${votesS1.map(v => `<li>${v}</li>`).join('')}</ul>` 
+            : `<p>Ti aspettiamo per la votazione della prima serata!</p>`;
+
+        let summaryS2 = votesS2 
+            ? `<ul>${votesS2.map(v => `<li>${v}</li>`).join('')}</ul>` 
+            : `<p>Ti aspettiamo per la votazione della seconda serata!</p>`;
+
+        votingAreaContainer.innerHTML = `
+            <div class="vote-summary">
+                <h4>Le tue preferenze</h4>
+                <strong>Prima Serata:</strong>
+                ${summaryS1}
+                <strong>Seconda Serata:</strong>
+                ${summaryS2}
+            </div>`;
     };
     
     const renderAdminContestantList = () => {
@@ -245,6 +281,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
         adminContestantListContainer.innerHTML = html + '</div>';
+    };
+
+    const handleVote = async () => {
+        const selected = document.querySelectorAll('#contestants-container input:checked');
+        if (selected.length === 0 || selected.length > 3) return alert('Devi selezionare da 1 a 3 preferenze.');
+        if (!confirm('Confermi il tuo voto? Non potrai più modificarlo.')) return;
+        
+        const selectedContestants = Array.from(selected).map(cb => cb.value);
+
+        selectedContestants.forEach(contestant => { 
+            state[`votes_${state.activeEvent}`][contestant]++; 
+        });
+        
+        if(!state.user_votes[currentUser]) state.user_votes[currentUser] = {};
+        state.user_votes[currentUser][state.activeEvent] = selectedContestants;
+
+        await saveState();
+        alert('Grazie per aver votato!');
+        renderUI();
     };
 
     // --- GESTIONE EVENTI ---
@@ -261,8 +316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!emailRegex.test(input)) return alert('Inserisci un indirizzo email valido.');
             
             const email = input.toLowerCase();
-            
-            let { data: existingVoter, error: fetchError } = await supabase.from('voters').select('access_code').eq('email', email).single();
+            let { data: existingVoter } = await supabase.from('voters').select('access_code').eq('email', email).single();
             
             let code;
             if (existingVoter) {
@@ -270,9 +324,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 alert(`Hai già un codice associato a questa email.\n\nIl tuo codice di voto è: ${code}\n\nInseriscilo qui sotto per accedere.`);
             } else {
                 code = Math.floor(100000 + Math.random() * 900000).toString();
-                const { error: upsertError } = await supabase.from('voters').upsert({ email: email, access_code: code }, { onConflict: 'email' });
-                if (upsertError) return alert("Errore nel generare il codice. Riprova.");
-                alert(`Questo è il tuo codice di voto personale e monouso:\n\n${code}\n\nMemorizzalo o fai uno screenshot, poi inseriscilo qui sotto per accedere.`);
+                await supabase.from('voters').upsert({ email: email, access_code: code }, { onConflict: 'email' });
+                alert(`Questo è il tuo codice di voto personale:\n\n${code}\n\nMemorizzalo o fai uno screenshot, poi inseriscilo qui sotto per accedere.`);
             }
 
             loginStage = 'code';
@@ -290,7 +343,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (error || !data || data.access_code !== code) return alert("Codice non corretto. Riprova.");
             
             currentUser = email;
-            if (!state.user_votes[currentUser]) state.user_votes[currentUser] = [];
             navigateTo('main');
             renderUI();
         }
@@ -307,18 +359,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         navigateTo('login');
     };
     logoutButtons.forEach(btn => btn.addEventListener('click', logout));
-    
-    voteBtn.addEventListener('click', async () => {
-        const selected = contestantsContainer.querySelectorAll('input:checked');
-        if (selected.length === 0 || selected.length > 3) return alert('Devi selezionare da 1 a 3 preferenze.');
-        if (!confirm('Confermi il tuo voto? Non potrai più modificarlo.')) return;
-        
-        selected.forEach(checkbox => { state[`votes_${state.activeEvent}`][checkbox.value]++; });
-        state.user_votes[currentUser].push(state.activeEvent);
-        await saveState();
-        alert('Grazie per aver votato!');
-        renderUI();
-    });
 
     toggleVotingBtn.addEventListener('click', async () => {
         state.votingOpen = !state.votingOpen;
@@ -344,9 +384,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(data.length === 0) return alert("Nessun votante si è ancora registrato.");
 
         let message = '--- LISTA VOTANTI REGISTRATI ---\n\n';
-        data.forEach(voter => {
-            message += `Email: ${voter.email} - Codice: ${voter.access_code}\n`;
-        });
+        data.forEach(voter => { message += `Email: ${voter.email} - Codice: ${voter.access_code}\n`; });
         alert(message);
     });
 
@@ -362,19 +400,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             state.user_votes = {};
             initializeVotes();
             await saveState();
-            await supabase.from('voters').delete().neq('email', 'placeholder'); // Svuota la tabella voters
+            await supabase.from('voters').delete().neq('email', 'placeholder');
             alert("Voti e utenti sono stati azzerati con successo.");
         }
     });
-
+    
+    const displayRanking = (voteData, title) => {
+        const sorted = Object.entries(voteData).sort((a, b) => b[1] - a[1]);
+        if (sorted.length === 0) {
+            alert(`Nessun voto registrato per ${title}.`);
+            return;
+        }
+        const message = sorted.map((entry, index) => `${index + 1}. ${entry[0]}: ${entry[1]} voti`).join('\n');
+        alert(`--- ${title.toUpperCase()} ---\n\n` + message);
+    };
+    
     generalRankingBtn.addEventListener('click', () => {
         const totalVotes = {};
         state.contestants.forEach(name => {
             totalVotes[name] = (state.votes_serata_1[name] || 0) + (state.votes_serata_2[name] || 0);
         });
-        const sorted = Object.entries(totalVotes).sort((a, b) => b[1] - a[1]);
-        const message = sorted.map((entry, index) => `${index + 1}. ${entry[0]}: ${entry[1]} voti`).join('\n');
-        alert('--- CLASSIFICA GENERALE ---\n\n' + message);
+        displayRanking(totalVotes, 'Classifica Generale');
+    });
+
+    eventRankingBtn.addEventListener('click', () => {
+        const eventKey = `votes_${state.activeEvent}`;
+        const eventVotes = state[eventKey];
+        const eventName = state.activeEvent.replace('_', ' ');
+        displayRanking(eventVotes, `Classifica ${eventName}`);
     });
 
     backToAdminBtn.addEventListener('click', () => navigateTo('main'));
