@@ -209,7 +209,6 @@
         const otpMessage = document.getElementById('otp-message');
         
         let userEmailForVerification = '';
-        let isAdminLoggedIn = false;
         let serateStatusCache = []; // Cache per lo stato delle serate
 
         const showLoading = (isLoading) => { loadingSpinner.style.display = isLoading ? 'flex' : 'none'; };
@@ -219,7 +218,7 @@
         };
         const showMessage = (element, message, isError = false) => {
             element.textContent = message;
-            element.style.color = isError ? 'var(--danger-color)' : 'var(--success-color)';
+            element.style.color = isError ? '#dc3545' : '#28a745';
             element.style.display = message ? 'block' : 'none';
         };
         const customAlert = (message) => {
@@ -235,8 +234,10 @@
             showLoading(true);
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
+                // Se c'è una sessione utente, va alla vista pubblica
                 await setupUIForUser(session.user);
             } else {
+                // Altrimenti, rimane sulla pagina di login
                 navigateTo('login');
             }
             showLoading(false);
@@ -249,6 +250,8 @@
                 navigateTo('login');
                 document.getElementById('user-input').value = '';
                 document.getElementById('otp-input').value = '';
+                document.getElementById('admin-view').style.display = 'none';
+                document.getElementById('public-view').style.display = 'none';
             }
         });
 
@@ -259,13 +262,15 @@
                 return;
             }
             
+            // --- LOGICA DI ACCESSO MODIFICATA ---
             if (input === ADMIN_CODE) {
-                isAdminLoggedIn = true;
+                // Se è il codice admin, mostra la vista admin
                 await setupAdminView();
                 navigateTo('main');
                 return;
             }
 
+            // Altrimenti, tratta l'input come un'email per un votante
             showLoading(true);
             showMessage(loginMessage, '');
             const { error } = await supabase.auth.signInWithOtp({ email: input });
@@ -295,6 +300,7 @@
             if (error) {
                 showMessage(otpMessage, 'Codice non valido o scaduto. Riprova.', true);
             }
+            // Se la verifica ha successo, onAuthStateChange gestirà la navigazione
             showLoading(false);
         });
 
@@ -334,7 +340,7 @@
             const manageBtn = document.getElementById('manage-contestants-btn');
 
             if (selectedSerata) {
-                const serataName = selectedSerataId.replace('_', ' ');
+                const serataName = selectedSerata.id === 'serata_1' ? 'Serata 1' : 'Serata 2';
                 if (selectedSerata.is_open) {
                     toggleBtn.textContent = `Chiudi Votazioni per ${serataName}`;
                     toggleBtn.className = 'btn btn-admin';
@@ -342,25 +348,17 @@
                     toggleBtn.textContent = `Apri Votazioni per ${serataName}`;
                     toggleBtn.className = 'btn btn-success';
                 }
+            } else {
+                toggleBtn.textContent = 'Stato non disponibile';
+                toggleBtn.className = 'btn btn-secondary';
             }
             
-            // Disabilita il pulsante di apertura/chiusura se un'altra serata è aperta
             const otherSerataIsOpen = serateStatusCache.some(s => s.is_open && s.id !== selectedSerataId);
-            if (otherSerataIsOpen && !selectedSerata.is_open) {
-                toggleBtn.disabled = true;
-                toggleBtn.title = "Chiudi l'altra serata prima di aprirne una nuova.";
-            } else {
-                toggleBtn.disabled = false;
-                toggleBtn.title = "";
-            }
+            toggleBtn.disabled = otherSerataIsOpen && (selectedSerata ? !selectedSerata.is_open : true);
+            toggleBtn.title = toggleBtn.disabled ? "Chiudi l'altra serata prima di aprirne una nuova." : "";
 
-            // Disabilita il pulsante di gestione partecipanti se una qualsiasi serata è aperta
             manageBtn.disabled = anySerataOpen;
-            if (anySerataOpen) {
-                manageBtn.title = "Chiudi le votazioni per gestire i partecipanti.";
-            } else {
-                manageBtn.title = "";
-            }
+            manageBtn.title = anySerataOpen ? "Chiudi le votazioni per gestire i partecipanti." : "";
         };
 
         document.getElementById('active-event-select').addEventListener('change', updateAdminControls);
@@ -379,8 +377,8 @@
             if (error) {
                 customAlert(`Errore nell'aggiornare la ${selectedSerataId}.`);
             } else {
-                await fetchAndCacheSerateStatus(); // Ricarica lo stato
-                updateAdminControls(); // Aggiorna la UI
+                await fetchAndCacheSerateStatus();
+                updateAdminControls();
             }
             showLoading(false);
         });
@@ -412,7 +410,7 @@
             }
 
             const serataId = openSerata.id;
-            const serataName = serataId.replace('_', ' ');
+            const serataName = serataId === 'serata_1' ? 'Serata 1' : 'Serata 2';
             votingStatusDiv.textContent = `VOTAZIONI APERTE - ${serataName}`;
             votingStatusDiv.style.color = 'green';
             
@@ -428,7 +426,7 @@
                 cardHTML += `</ul><button id="vote-btn" class="btn btn-primary">Invia Voto per ${serataName}</button>`;
                 votingArea.innerHTML = cardHTML;
                 
-                document.getElementById('vote-btn').addEventListener('click', async () => handleVote(user, serataId));
+                document.getElementById('vote-btn').addEventListener('click', () => handleVote(user, serataId));
             }
         };
 
@@ -455,9 +453,9 @@
 
         // --- Logout ---
         document.getElementById('logout-btn-admin').addEventListener('click', () => {
-            isAdminLoggedIn = false;
             navigateTo('login');
             document.getElementById('user-input').value = '';
+            document.getElementById('admin-view').style.display = 'none';
         });
 
         document.getElementById('logout-btn-public').addEventListener('click', async () => {
@@ -488,19 +486,22 @@
             showLoading(true);
             const { error } = await supabase.from('cantanti').insert({ nome: newName });
             showLoading(false);
-            if (error) { customAlert('Errore: cantante già presente.'); }
+            if (error) { customAlert('Errore: cantante già presente o problema di connessione.'); }
             else { nameInput.value = ''; await renderAdminContestantList(); }
         });
 
         document.getElementById('admin-contestant-list-container').addEventListener('click', async (e) => {
             if (e.target.classList.contains('btn-remove')) {
                 const nameToRemove = e.target.dataset.name;
-                if (window.confirm(`Rimuovere ${nameToRemove}?`)) {
+                // Usiamo una conferma migliore del `window.confirm`
+                customAlert(`Sei sicuro di voler rimuovere ${nameToRemove}? <br><button id="confirm-delete" class="btn btn-admin" style="margin-top:1rem;">Conferma</button>`);
+                document.getElementById('confirm-delete').onclick = async () => {
+                    document.getElementById('custom-alert-modal').style.display = 'none';
                     showLoading(true);
                     await supabase.from('cantanti').delete().eq('nome', nameToRemove);
                     showLoading(false);
                     await renderAdminContestantList();
-                }
+                };
             }
         });
 
@@ -513,35 +514,45 @@
                 return customAlert('Errore nel caricamento dei risultati.');
             }
             const votes = {};
+            const { data: cantanti, error: cantantiError } = await supabase.from('cantanti').select('nome');
+            if (cantantiError) { /* Gestisci errore */ }
+            
+            // Inizializza tutti i cantanti a 0 voti
+            cantanti.forEach(c => {
+                votes[c.nome] = { s1: 0, s2: 0, total: 0 };
+            });
+
             data.forEach(row => {
                 (row.voti_serata_1 || []).forEach(nome => {
-                    if (!votes[nome]) votes[nome] = { s1: 0, s2: 0, total: 0 };
-                    votes[nome].s1++;
-                    votes[nome].total++;
+                    if (votes[nome]) {
+                        votes[nome].s1++;
+                        votes[nome].total++;
+                    }
                 });
                 (row.voti_serata_2 || []).forEach(nome => {
-                    if (!votes[nome]) votes[nome] = { s1: 0, s2: 0, total: 0 };
-                    votes[nome].s2++;
-                    votes[nome].total++;
+                    if (votes[nome]) {
+                        votes[nome].s2++;
+                        votes[nome].total++;
+                    }
                 });
             });
             const sorted = Object.entries(votes).sort(([, a], [, b]) => b.total - a.total);
             
             let resultsMessage;
             if (detailed) {
-                resultsMessage = '--- Risultati Dettagliati ---\n\n';
+                resultsMessage = '<h3>Risultati Dettagliati</h3><hr>';
                 sorted.forEach(([nome, conteggio]) => {
-                    resultsMessage += `${nome}: ${conteggio.total} voti (S1: ${conteggio.s1}, S2: ${conteggio.s2})\n`;
+                    resultsMessage += `<div style="text-align:left; padding: 2px 0;"><b>${nome}:</b> ${conteggio.total} voti (S1: ${conteggio.s1}, S2: ${conteggio.s2})</div>`;
                 });
             } else {
-                resultsMessage = '--- Classifica Generale ---\n\n';
+                resultsMessage = '<h3>Classifica Generale</h3><hr>';
                 sorted.forEach(([nome, conteggio], index) => {
-                    resultsMessage += `${index + 1}. ${nome}: ${conteggio.total} voti\n`;
+                    resultsMessage += `<div style="text-align:left; padding: 2px 0;"><b>${index + 1}. ${nome}:</b> ${conteggio.total} voti</div>`;
                 });
             }
             
             showLoading(false);
-            customAlert(`<pre style="text-align: left; white-space: pre-wrap;">${resultsMessage || 'Nessun voto registrato.'}</pre>`);
+            customAlert(`<div style="max-height: 40vh; overflow-y: auto;">${resultsMessage || 'Nessun voto registrato.'}</div>`);
         };
 
         document.getElementById('general-ranking-btn').addEventListener('click', () => showResults(false));
