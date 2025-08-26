@@ -50,13 +50,13 @@
 
             <div id="login-screen" class="screen">
                 <h2>Benvenuto al Contest</h2>
-                <p style="text-align: center; color: #666;">Inserisci la tua email o il codice admin per accedere.</p>
+                <p style="text-align: center; color: #666;">Inserisci la tua email per ricevere il codice di voto, o inserisci il codice admin.</p>
                 <div class="form-group">
                     <label for="user-email">La tua Email / Codice Admin</label>
                     <input type="text" id="user-email" placeholder="nome@email.com" autocomplete="email">
                 </div>
                 <div class="form-group" id="code-entry-group" style="display: none;">
-                    <label for="user-code">Codice di verifica</label>
+                    <label for="user-code">Il tuo Codice di Voto</label>
                     <input type="text" id="user-code" class="code-input" placeholder="_ _ _ _ _ _" autocomplete="off" maxlength="6">
                 </div>
                 <button id="login-btn" class="btn btn-primary">Procedi</button>
@@ -112,9 +112,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const supabase = self.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // --- VARIABILI GLOBALI ---
-    let state = {}; // Questo verrà popolato da Supabase
-    let currentUser = null; // Sarà l'email del votante
-    let loginStage = 'email'; // 'email' o 'code'
+    let state = {};
+    let currentUser = null;
+    let loginStage = 'email';
 
     // --- ELEMENTI DEL DOM ---
     const screens = {
@@ -153,11 +153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- FUNZIONI SUPABASE ---
     const fetchState = async () => {
-        const { data, error } = await supabase
-            .from('app_state')
-            .select('data')
-            .eq('id', 1)
-            .single();
+        const { data, error } = await supabase.from('app_state').select('data').eq('id', 1).single();
         if (error) {
             console.error('Errore nel caricamento dello stato:', error);
             alert('Impossibile caricare i dati. Riprova più tardi.');
@@ -169,10 +165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const saveState = async () => {
         disableButtons(true);
-        const { error } = await supabase
-            .from('app_state')
-            .update({ data: state })
-            .eq('id', 1);
+        const { error } = await supabase.from('app_state').update({ data: state }).eq('id', 1);
         if (error) {
             console.error('Errore nel salvataggio dello stato:', error);
             alert('Si è verificato un errore. I tuoi dati potrebbero non essere stati salvati.');
@@ -197,7 +190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     const renderUI = () => {
-        if (!currentUser) return; // Non renderizzare se non c'è un utente
+        if (!currentUser) return;
         if (currentUser.toUpperCase() === 'ROB025490') {
             adminView.style.display = 'block';
             publicView.style.display = 'none';
@@ -215,12 +208,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const statusDiv = document.getElementById('voting-status');
         const votingArea = document.getElementById('public-voting-area');
         const activeEventName = state.activeEvent.replace('_', ' ');
-
-        // Vista Admin
         toggleVotingBtn.textContent = state.votingOpen ? `Chiudi Votazioni per ${activeEventName}` : `Apri Votazioni per ${activeEventName}`;
         toggleVotingBtn.className = `btn ${state.votingOpen ? 'btn-admin' : 'btn-secondary'}`;
-        
-        // Vista Pubblico
         const userHasVoted = state.user_votes[currentUser]?.includes(state.activeEvent);
         if (state.votingOpen) {
             statusDiv.textContent = `VOTAZIONI APERTE - ${activeEventName}`;
@@ -266,20 +255,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 renderUI();
                 return;
             }
-
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(input)) {
-                return alert('Inserisci un indirizzo email valido.');
+            if (!emailRegex.test(input)) return alert('Inserisci un indirizzo email valido.');
+            
+            const email = input.toLowerCase();
+            
+            // Controlla se l'email ha già un codice
+            let { data: existingVoter, error: fetchError } = await supabase.from('voters').select('access_code').eq('email', email).single();
+            
+            let code;
+            if (existingVoter) {
+                // Se l'utente esiste già, mostragli il suo codice esistente
+                code = existingVoter.access_code;
+                alert(`Hai già un codice associato a questa email.\n\nIl tuo codice di voto è: ${code}\n\nInseriscilo qui sotto per accedere.`);
+            } else {
+                // Altrimenti, crea un nuovo codice
+                code = Math.floor(100000 + Math.random() * 900000).toString();
+                const { error: upsertError } = await supabase.from('voters').upsert({ email: email, access_code: code }, { onConflict: 'email' });
+                if (upsertError) return alert("Errore nel generare il codice. Riprova.");
+                alert(`Questo è il tuo codice di voto personale e monouso:\n\n${code}\n\nMemorizzalo o fai uno screenshot, poi inseriscilo qui sotto per accedere.`);
             }
-            
-            const tempEmail = input.toLowerCase();
-            const code = Math.floor(100000 + Math.random() * 900000).toString();
-            
-            console.log(`Email: ${tempEmail}, Codice di accesso: ${code}`);
-            alert(`Abbiamo generato un codice. Per semplicità, trovalo nella console del browser (premi F12 e vai sulla scheda 'Console') e inseriscilo qui sotto.`);
-
-            const { error } = await supabase.from('voters').upsert({ email: tempEmail, access_code: code }, { onConflict: 'email' });
-            if (error) return alert("Errore nel generare il codice. Riprova.");
 
             loginStage = 'code';
             userEmailInput.disabled = true;
@@ -292,20 +287,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const code = userCodeInput.value.trim();
             if (code.length !== 6) return alert("Il codice deve essere di 6 cifre.");
 
-            const { data, error } = await supabase
-                .from('voters')
-                .select('access_code')
-                .eq('email', email)
-                .single();
-            
-            if (error || !data || data.access_code !== code) {
-                return alert("Codice non corretto. Riprova.");
-            }
+            const { data, error } = await supabase.from('voters').select('access_code').eq('email', email).single();
+            if (error || !data || data.access_code !== code) return alert("Codice non corretto. Riprova.");
             
             currentUser = email;
-            if (!state.user_votes[currentUser]) {
-                state.user_votes[currentUser] = [];
-            }
+            if (!state.user_votes[currentUser]) state.user_votes[currentUser] = [];
             navigateTo('main');
             renderUI();
         }
@@ -325,17 +311,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     voteBtn.addEventListener('click', async () => {
         const selected = contestantsContainer.querySelectorAll('input:checked');
-        if (selected.length === 0 || selected.length > 3) {
-            return alert('Devi selezionare da 1 a 3 preferenze.');
-        }
+        if (selected.length === 0 || selected.length > 3) return alert('Devi selezionare da 1 a 3 preferenze.');
         if (!confirm('Confermi il tuo voto? Non potrai più modificarlo.')) return;
         
-        selected.forEach(checkbox => {
-            state[`votes_${state.activeEvent}`][checkbox.value]++;
-        });
-        
+        selected.forEach(checkbox => { state[`votes_${state.activeEvent}`][checkbox.value]++; });
         state.user_votes[currentUser].push(state.activeEvent);
-        
         await saveState();
         alert('Grazie per aver votato!');
         renderUI();
@@ -369,8 +349,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             state.votes_serata_1 = {};
             state.votes_serata_2 = {};
             state.user_votes = {};
-            initializeVotes(); // Rinizializza i voti a 0 per ogni partecipante
+            initializeVotes();
             await saveState();
+            await supabase.from('voters').delete().neq('email', 'placeholder'); // Svuota la tabella voters
             alert("Voti e utenti sono stati azzerati con successo.");
         }
     });
@@ -381,7 +362,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             totalVotes[name] = (state.votes_serata_1[name] || 0) + (state.votes_serata_2[name] || 0);
         });
         const sorted = Object.entries(totalVotes).sort((a, b) => b[1] - a[1]);
-        
         const message = sorted.map((entry, index) => `${index + 1}. ${entry[0]}: ${entry[1]} voti`).join('\n');
         alert('--- CLASSIFICA GENERALE ---\n\n' + message);
     });
@@ -392,9 +372,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const nameInput = document.getElementById('new-contestant-name');
         const newName = nameInput.value.trim();
         if (newName === "") return alert("Il nome non può essere vuoto.");
-        if (state.contestants.map(c => c.toLowerCase()).includes(newName.toLowerCase())) {
-            return alert("Questo partecipante è già in lista.");
-        }
+        if (state.contestants.map(c => c.toLowerCase()).includes(newName.toLowerCase())) return alert("Questo partecipante è già in lista.");
         state.contestants.push(newName);
         initializeVotes();
         await saveState();
