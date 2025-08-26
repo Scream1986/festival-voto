@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vocal Hub Contest</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --header-bg: #000; --button-primary-bg: #ffc107; --button-primary-text: #000; --button-admin-bg: #dc3545; --secondary-color: #6c757d; --light-color: #f8f9fa; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; background-color: var(--light-color); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1rem 0; }
+        .app-container { width: 100%; max-width: 480px; background-color: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); overflow: hidden; }
+        header { background-color: var(--header-bg); color: white; text-align: center; padding: 0.5rem; }
+        header img { height: 60px; width: auto; display: block; margin: 0 auto; }
+        main { padding: 1.5rem; }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        h2, h3 { margin-top: 0; text-align: center; }
+        .form-group { margin-bottom: 1rem; }
+        .contestant-list { list-style-type: none; padding: 0; }
+        .contestant-item { display: flex; align-items: center; background-color: #fdfdfd; border: 1px solid #ddd; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.5rem; }
+        .contestant-item input[type="checkbox"] { width: 1.5em; height: 1.5em; margin-right: 1rem; }
+        .contestant-item label, .admin-contestant-list-item span { font-weight: 500; flex-grow: 1; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+        input[type="text"], input[type="email"] { width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        input[type="text"].code-input { text-align: center; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0.5em; }
+        select { width:100%; padding: 0.5rem; border-radius: 4px; border: 1px solid #ccc; }
+        .btn { display: block; width: 100%; padding: 0.75rem; border: none; border-radius: 4px; font-size: 1rem; font-weight: bold; cursor: pointer; text-align: center; text-decoration: none; margin-top: 1rem; }
+        .btn:disabled { background-color: #ccc; cursor: not-allowed; }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; margin: 0; width: auto; }
+        .btn-primary { background-color: var(--button-primary-bg); color: var(--button-primary-text); }
+        .btn-secondary { background-color: var(--secondary-color); color: white; }
+        .btn-admin { background-color: var(--button-admin-bg); color: white; }
+        .admin-controls { border: 1px solid #eee; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; }
+        .admin-controls h3 { margin-bottom: 1rem; }
+        .admin-contestant-list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; border-bottom: 1px solid #eee; }
+        .add-contestant-form { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
+        #voting-status { text-align: center; padding: 10px; border-radius: 5px; font-weight: bold; margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header id="app-header">
+            <img src="https://raw.githubusercontent.com/Scream1986/festival-voto/main/Logo.png" alt="Vocal Hub Logo">
+        </header>
+        <main>
+            <div id="loading-screen" class="screen active">
+                <h2 style="text-align:center;">Caricamento...</h2>
+            </div>
+
+            <div id="login-screen" class="screen">
+                <h2>Benvenuto al Contest</h2>
+                <p style="text-align: center; color: #666;">Inserisci la tua email o il codice admin per accedere.</p>
+                <div class="form-group">
+                    <label for="user-email">La tua Email / Codice Admin</label>
+                    <input type="text" id="user-email" placeholder="nome@email.com" autocomplete="email">
+                </div>
+                <div class="form-group" id="code-entry-group" style="display: none;">
+                    <label for="user-code">Codice di verifica</label>
+                    <input type="text" id="user-code" class="code-input" placeholder="_ _ _ _ _ _" autocomplete="off" maxlength="6">
+                </div>
+                <button id="login-btn" class="btn btn-primary">Procedi</button>
+            </div>
+
+            <div id="main-screen" class="screen">
+                <div id="admin-view" style="display: none;">
+                    <h2>Pannello Amministratore</h2>
+                    <div class="admin-controls">
+                        <h3>Gestione Serate</h3>
+                        <label for="active-event-select">Seleziona la serata da gestire:</label>
+                        <select id="active-event-select"><option value="serata_1">Serata 1</option><option value="serata_2">Serata 2</option></select>
+                        <button id="toggle-voting-btn" class="btn btn-secondary">Apri Votazioni</button>
+                    </div>
+                    <div class="admin-controls">
+                        <h3>Azioni e Risultati</h3>
+                        <button id="manage-contestants-btn" class="btn btn-secondary">Gestisci Partecipanti</button>
+                        <button id="general-ranking-btn" class="btn btn-primary">Classifica Generale</button>
+                    </div>
+                    <button id="logout-btn-admin" class="btn btn-admin" style="margin-top: 2rem;">Esci</button>
+                </div>
+
+                <div id="public-view" style="display: none;">
+                    <h2 id="public-welcome">Area Votazione</h2>
+                    <div id="voting-status"></div>
+                    <div id="public-voting-area">
+                        <p>Puoi esprimere fino a <strong>3 preferenze</strong> per la serata in corso.</p>
+                        <div id="contestants-container"></div>
+                        <button id="vote-btn" class="btn btn-primary">Vota le tue 3 preferenze</button>
+                    </div>
+                    <button id="logout-btn-public" class="btn btn-secondary">Esci</button>
+                </div>
+            </div>
+
+            <div id="manage-screen" class="screen">
+                <h2>Gestione Partecipanti</h2>
+                <div id="admin-contestant-list-container"></div>
+                <div class="add-contestant-form">
+                    <input type="text" id="new-contestant-name" placeholder="Nome nuovo partecipante" style="flex-grow: 1;">
+                    <button id="add-contestant-btn" class="btn btn-primary btn-sm">Aggiungi</button>
+                </div>
+                <button id="back-to-admin-btn" class="btn btn-secondary" style="margin-top: 2rem;">Torna al Pannello</button>
+            </div>
+        </main>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    // --- CONFIGURAZIONE SUPABASE ---
+    const SUPABASE_URL = 'https://igngvrktzevpghxwxpqw.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlnbmd2cmt0emV2cGdoeHd4cHF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyNDE1MzIsImV4cCI6MjA3MTgxNzUzMn0.VjVt37MQx1mGRN4vOkyOlXPFH5LKSajKNXq8HzbHD6I';
+    const supabase = self.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // --- VARIABILI GLOBALI ---
+    let state = {}; // Questo verrà popolato da Supabase
+    let currentUser = null; // Sarà l'email del votante
+    let loginStage = 'email'; // 'email' o 'code'
+
+    // --- ELEMENTI DEL DOM ---
+    const screens = {
+        'loading': document.getElementById('loading-screen'),
+        'login': document.getElementById('login-screen'),
+        'main': document.getElementById('main-screen'),
+        'manage': document.getElementById('manage-screen')
+    };
+    const adminView = document.getElementById('admin-view');
+    const publicView = document.getElementById('public-view');
+    const loginBtn = document.getElementById('login-btn');
+    const userEmailInput = document.getElementById('user-email');
+    const userCodeInput = document.getElementById('user-code');
+    const codeEntryGroup = document.getElementById('code-entry-group');
+    const logoutButtons = document.querySelectorAll('#logout-btn-admin, #logout-btn-public');
+    const contestantsContainer = document.getElementById('contestants-container');
+    const adminContestantListContainer = document.getElementById('admin-contestant-list-container');
+    const voteBtn = document.getElementById('vote-btn');
+    const toggleVotingBtn = document.getElementById('toggle-voting-btn');
+    const generalRankingBtn = document.getElementById('general-ranking-btn');
+    const manageContestantsBtn = document.getElementById('manage-contestants-btn');
+    const activeEventSelect = document.getElementById('active-event-select');
+    const addContestantBtn = document.getElementById('add-contestant-btn');
+    const backToAdminBtn = document.getElementById('back-to-admin-btn');
+    
+    // --- FUNZIONI DI BASE ---
+    const navigateTo = (screenId) => {
+        Object.values(screens).forEach(s => s.classList.remove('active'));
+        screens[screenId]?.classList.add('active');
+    };
+
+    const disableButtons = (disabled = true) => {
+        document.querySelectorAll('button').forEach(b => b.disabled = disabled);
+    };
+
+    // --- FUNZIONI SUPABASE ---
+    const fetchState = async () => {
+        const { data, error } = await supabase
+            .from('app_state')
+            .select('data')
+            .eq('id', 1)
+            .single();
+        if (error) {
+            console.error('Errore nel caricamento dello stato:', error);
+            alert('Impossibile caricare i dati. Riprova più tardi.');
+            return;
+        }
+        state = data.data;
+        initializeVotes();
+    };
+
+    const saveState = async () => {
+        disableButtons(true);
+        const { error } = await supabase
+            .from('app_state')
+            .update({ data: state })
+            .eq('id', 1);
+        if (error) {
+            console.error('Errore nel salvataggio dello stato:', error);
+            alert('Si è verificato un errore. I tuoi dati potrebbero non essere stati salvati.');
+        }
+        disableButtons(false);
+    };
+
+    // --- LOGICA APPLICAZIONE ---
+    const initializeApp = async () => {
+        await fetchState();
+        navigateTo('login');
+    };
+
+    const initializeVotes = () => {
+        state.contestants.forEach(name => {
+            if (state.votes_serata_1[name] === undefined) state.votes_serata_1[name] = 0;
+            if (state.votes_serata_2[name] === undefined) state.votes_serata_2[name] = 0;
+        });
+        if (!state.user_votes) state.user_votes = {};
+    };
+
+    const renderUI = () => {
+        if (!currentUser) return; // Non renderizzare se non c'è un utente
+        if (currentUser === 'ADMIN') {
+            adminView.style.display = 'block';
+            publicView.style.display = 'none';
+            activeEventSelect.value = state.activeEvent;
+        } else {
+            adminView.style.display = 'none';
+            publicView.style.display = 'block';
+            document.getElementById('public-welcome').textContent = `Ciao votante!`;
+        }
+        updateVotingStatus();
+        renderAdminContestantList();
+    };
+    
+    const updateVotingStatus = () => {
+        const statusDiv = document.getElementById('voting-status');
+        const votingArea = document.getElementById('public-voting-area');
+        const activeEventName = state.activeEvent.replace('_', ' ');
+
+        // Vista Admin
+        toggleVotingBtn.textContent = state.votingOpen ? `Chiudi Votazioni per ${activeEventName}` : `Apri Votazioni per ${activeEventName}`;
+        toggleVotingBtn.className = `btn ${state.votingOpen ? 'btn-admin' : 'btn-secondary'}`;
+        
+        // Vista Pubblico
+        const userHasVoted = state.user_votes[currentUser]?.includes(state.activeEvent);
+        if (state.votingOpen) {
+            statusDiv.textContent = `VOTAZIONI APERTE - ${activeEventName}`;
+            statusDiv.style.color = 'green';
+            if (userHasVoted) {
+                votingArea.innerHTML = `<p style="text-align:center; font-weight:bold;">Grazie per aver votato per la ${activeEventName}!</p>`;
+            } else {
+                votingArea.style.display = 'block';
+                renderPublicContestantList();
+            }
+        } else {
+            statusDiv.textContent = 'VOTAZIONI CHIUSE';
+            statusDiv.style.color = 'red';
+            votingArea.style.display = 'none';
+        }
+    };
+    
+    const renderPublicContestantList = () => {
+        contestantsContainer.innerHTML = `<ul class="contestant-list">${state.contestants.map((name, index) => 
+            `<li class="contestant-item"><input type="checkbox" id="c-${index}" value="${name}"><label for="c-${index}">${name}</label></li>`
+        ).join('')}</ul>`;
+    };
+    
+    const renderAdminContestantList = () => {
+        let html = '<div class="admin-contestant-list">';
+        if(state.contestants.length === 0) {
+            html += '<p style="text-align:center; color:#666;">Nessun partecipante.</p>';
+        } else {
+            state.contestants.forEach(name => {
+                html += `<div class="admin-contestant-list-item"><span>${name}</span><button class="btn btn-admin btn-sm btn-remove" data-name="${name}">Rimuovi</button></div>`;
+            });
+        }
+        adminContestantListContainer.innerHTML = html + '</div>';
+    };
+
+    // --- GESTIONE EVENTI ---
+    loginBtn.addEventListener('click', async () => {
+        if (loginStage === 'email') {
+            const input = userEmailInput.value.trim();
+            if (input.toUpperCase() === 'ADMIN') {
+                currentUser = 'ADMIN';
+                navigateTo('main');
+                renderUI();
+                return;
+            }
+
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(input)) {
+                return alert('Inserisci un indirizzo email valido.');
+            }
+            
+            const tempEmail = input.toLowerCase();
+            const code = Math.floor(100000 + Math.random() * 900000).toString();
+            
+            // Per ora, il codice viene mostrato nella console.
+            // Apri gli strumenti per sviluppatori (F12) per vederlo.
+            console.log(`Email: ${tempEmail}, Codice di accesso: ${code}`);
+            alert(`Abbiamo generato un codice. Per semplicità, trovalo nella console del browser (premi F12 e vai sulla scheda 'Console') e inseriscilo qui sotto.`);
+
+            const { error } = await supabase.from('voters').upsert({ email: tempEmail, access_code: code }, { onConflict: 'email' });
+            if (error) return alert("Errore nel generare il codice. Riprova.");
+
+            loginStage = 'code';
+            userEmailInput.disabled = true;
+            codeEntryGroup.style.display = 'block';
+            userCodeInput.focus();
+            loginBtn.textContent = "Accedi";
+
+        } else if (loginStage === 'code') {
+            const email = userEmailInput.value.trim().toLowerCase();
+            const code = userCodeInput.value.trim();
+            if (code.length !== 6) return alert("Il codice deve essere di 6 cifre.");
+
+            const { data, error } = await supabase
+                .from('voters')
+                .select('access_code')
+                .eq('email', email)
+                .single();
+            
+            if (error || !data || data.access_code !== code) {
+                return alert("Codice non corretto. Riprova.");
+            }
+            
+            currentUser = email;
+            if (!state.user_votes[currentUser]) {
+                state.user_votes[currentUser] = [];
+            }
+            navigateTo('main');
+            renderUI();
+        }
+    });
+
+    const logout = () => {
+        currentUser = null;
+        userEmailInput.value = '';
+        userCodeInput.value = '';
+        userEmailInput.disabled = false;
+        codeEntryGroup.style.display = 'none';
+        loginBtn.textContent = 'Procedi';
+        loginStage = 'email';
+        navigateTo('login');
+    };
+    logoutButtons.forEach(btn => btn.addEventListener('click', logout));
+    
+    voteBtn.addEventListener('click', async () => {
+        const selected = contestantsContainer.querySelectorAll('input:checked');
+        if (selected.length === 0 || selected.length > 3) {
+            return alert('Devi selezionare da 1 a 3 preferenze.');
+        }
+        if (!confirm('Confermi il tuo voto? Non potrai più modificarlo.')) return;
+        
+        selected.forEach(checkbox => {
+            state[`votes_${state.activeEvent}`][checkbox.value]++;
+        });
+        
+        state.user_votes[currentUser].push(state.activeEvent);
+        
+        await saveState();
+        alert('Grazie per aver votato!');
+        renderUI();
+    });
+
+    toggleVotingBtn.addEventListener('click', async () => {
+        state.votingOpen = !state.votingOpen;
+        await saveState();
+        alert(`Le votazioni per la ${state.activeEvent.replace('_', ' ')} sono ora ${state.votingOpen ? 'APERTE' : 'CHIUSE'}.`);
+        renderUI();
+    });
+
+    activeEventSelect.addEventListener('change', async (e) => {
+        if (state.votingOpen) {
+            alert("Chiudi prima le votazioni della serata corrente.");
+            e.target.value = state.activeEvent;
+            return;
+        }
+        state.activeEvent = e.target.value;
+        await saveState();
+        renderUI();
+    });
+
+    manageContestantsBtn.addEventListener('click', () => {
+        if (state.votingOpen) return alert("Chiudi le votazioni prima di gestire i partecipanti.");
+        navigateTo('manage');
+    });
+
+
+    generalRankingBtn.addEventListener('click', () => {
+        const totalVotes = {};
+        state.contestants.forEach(name => {
+            totalVotes[name] = (state.votes_serata_1[name] || 0) + (state.votes_serata_2[name] || 0);
+        });
+        const sorted = Object.entries(totalVotes).sort((a, b) => b[1] - a[1]);
+        
+        const message = sorted.map((entry, index) => `${index + 1}. ${entry[0]}: ${entry[1]} voti`).join('\n');
+        alert('--- CLASSIFICA GENERALE ---\n\n' + message);
+    });
+
+    backToAdminBtn.addEventListener('click', () => navigateTo('main'));
+
+    addContestantBtn.addEventListener('click', async () => {
+        const nameInput = document.getElementById('new-contestant-name');
+        const newName = nameInput.value.trim();
+        if (newName === "") return alert("Il nome non può essere vuoto.");
+        if (state.contestants.map(c => c.toLowerCase()).includes(newName.toLowerCase())) {
+            return alert("Questo partecipante è già in lista.");
+        }
+        state.contestants.push(newName);
+        initializeVotes();
+        await saveState();
+        renderAdminContestantList();
+        nameInput.value = "";
+    });
+
+    adminContestantListContainer.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('btn-remove')) {
+            const nameToRemove = e.target.dataset.name;
+            if (confirm(`Sei sicuro di voler rimuovere ${nameToRemove}?`)) {
+                state.contestants = state.contestants.filter(name => name !== nameToRemove);
+                // Non cancelliamo i voti per mantenere lo storico
+                await saveState();
+                renderAdminContestantList();
+            }
+        }
+    });
+
+    // --- AVVIO ---
+    initializeApp();
+});
+</script>
+</body>
+</html>
