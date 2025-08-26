@@ -74,6 +74,7 @@
                     <div class="admin-controls">
                         <h3>Azioni e Risultati</h3>
                         <button id="manage-contestants-btn" class="btn btn-secondary">Gestisci Partecipanti</button>
+                        <button id="view-voters-btn" class="btn btn-secondary">Visualizza Votanti</button>
                         <button id="general-ranking-btn" class="btn btn-primary">Classifica Generale</button>
                         <button id="reset-votes-btn" class="btn btn-danger">Reset Voti e Utenti</button>
                     </div>
@@ -140,6 +141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const addContestantBtn = document.getElementById('add-contestant-btn');
     const backToAdminBtn = document.getElementById('back-to-admin-btn');
     const resetVotesBtn = document.getElementById('reset-votes-btn');
+    const viewVotersBtn = document.getElementById('view-voters-btn');
     
     // --- FUNZIONI DI BASE ---
     const navigateTo = (screenId) => {
@@ -260,16 +262,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const email = input.toLowerCase();
             
-            // Controlla se l'email ha già un codice
             let { data: existingVoter, error: fetchError } = await supabase.from('voters').select('access_code').eq('email', email).single();
             
             let code;
             if (existingVoter) {
-                // Se l'utente esiste già, mostragli il suo codice esistente
                 code = existingVoter.access_code;
                 alert(`Hai già un codice associato a questa email.\n\nIl tuo codice di voto è: ${code}\n\nInseriscilo qui sotto per accedere.`);
             } else {
-                // Altrimenti, crea un nuovo codice
                 code = Math.floor(100000 + Math.random() * 900000).toString();
                 const { error: upsertError } = await supabase.from('voters').upsert({ email: email, access_code: code }, { onConflict: 'email' });
                 if (upsertError) return alert("Errore nel generare il codice. Riprova.");
@@ -337,6 +336,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         state.activeEvent = e.target.value;
         await saveState();
         renderUI();
+    });
+    
+    viewVotersBtn.addEventListener('click', async () => {
+        const { data, error } = await supabase.from('voters').select('email, access_code');
+        if(error) return alert("Impossibile caricare la lista dei votanti.");
+        if(data.length === 0) return alert("Nessun votante si è ancora registrato.");
+
+        let message = '--- LISTA VOTANTI REGISTRATI ---\n\n';
+        data.forEach(voter => {
+            message += `Email: ${voter.email} - Codice: ${voter.access_code}\n`;
+        });
+        alert(message);
     });
 
     manageContestantsBtn.addEventListener('click', () => {
