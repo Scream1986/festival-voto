@@ -73,7 +73,7 @@
                         <button id="manage-contestants-btn" class="btn btn-secondary">Gestisci Partecipanti</button>
                         <button id="view-voters-btn" class="btn btn-secondary">Visualizza Stato Codici</button>
                         <button id="view-event-ranking-btn" class="btn btn-primary">Classifica</button>
-                        <button id="setup-codes-btn" class="btn btn-admin">Sincronizza i 500 Codici nel DB</button>
+                        <button id="setup-codes-btn" class="btn btn-admin">Attiva i 500 Codici di Voto</button>
                         <button id="reset-votes-btn" class="btn btn-danger">Reset Completo Voti e Codici</button>
                     </div>
                     <button id="logout-btn-admin" class="btn btn-admin" style="margin-top: 2rem;">Esci</button>
@@ -92,7 +92,7 @@
                 <div id="admin-contestant-list-container"></div>
                 <div class="add-contestant-form">
                     <input type="text" id="new-contestant-name" placeholder="Nome nuovo partecipante" style="flex-grow: 1;">
-                    <button id="add-contestant-btn" class="btn btn-primary btn-sm">Aggiungi</button>
+                    <button id="add-contestant-btn" class="btn btn-primary btn-sm">Aungi</button>
                 </div>
                 <button id="back-to-admin-btn" class="btn btn-secondary" style="margin-top: 2rem;">Torna al Pannello</button>
             </div>
@@ -108,7 +108,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     let state = {};
     let currentUserCode = null;
 
-    // Array completo dei 500 codici generati appositamente per te
     const PREGENERATED_CODES = ["10482591","11394627","12584039","13840294","14692740","15920438","16402935","17294810","18493025","19385026","20491835","21394850","22619403","23849102","24719402","25930284","26491048","27395820","28401947","29581043","30491825","31495028","32619483","33948102","34710492","35930184","36492014","37395104","38402957","39582041","40492815","41496023","42620481","43949105","44711496","45931187","46493018","47396105","48403951","49583042","50493812","51497024","52621482","53950106","54712497","55932188","56494019","57397106","58404952","59584043","60494813","61498025","62622483","63951107","64713498","65933189","66495011","67398107","68405953","69585044","70495814","71499026","72623484","73952108","74714499","75934181","76496012","77399108","78406954","79586045","80496815","81400027","82624485","83953109","84715491","85935182","86497013","87300109","88407955","89587046","90497816","91401028","92625486","93954101","94716492","95936183","96498014","97301101","98408956","99588047","10593847","11482950","12693041","13958204","14703952","15814029","16593841","17304925","18592047","19403951","20594812","21483951","22704152","23959315","24814063","25925130","26604952","27415036","28503069","29693154","30605923","31594062","32715263","33060426","34925174","35036241","36716063","37526147","38614170","39704265","40716034","41605173","42826374","43171537","44036285","45147352","46827174","47637258","48725281","49815376","50827145","51716284","52937485","53282648","54147396","55258463","56938285","57748369","58836392","59926487","60938256","61827395","62048596","63393759","64258507","65369574","66049396","67859480","68947403","69037598","70049367","71938506","72159607","73404860","74369618","75480685","76160407","77960591","78058514","79148609","80160478","81049617","82260718","83515971","84470729","85591796","86271518","87071602","88169625","89259710","90271589","91160728","92371829","93626082","94581830","95602807","96382629","97182713","98270736","99360821","10839462","11948261","12049385","13284059","14395820","15402938","16592041","17603952","18714063","19825174","20936285","21047396","22158407","23269518","24380629","25491740","26502851","27613962","28725073","29836184","30947295","31058406","32169517","33280628","34391739","35502850","36613961","37725072","38836183","39947294","40058405","41169516","42280627","43391738","44502849","45613960","46725071","47836182","48947293","49058404","50169515","51280626","52391737","53502848","54613959","55725070","56836181","57947292","58058403","59169514","60280625","61391736","62502847","63613958","64725069","65836180","66947291","67058402","68169513","69280624","70391735","71502846","72613957","73725068","74836179","75947290","76058401","77169512","78280623","79391734","80502845","81613956","82725067","83836178","84947289","85058400","86169511","87280622","88391733","89502844","90613955","91725066","92836177","93947288","94058399","95169510","96280621","97391732","98502843","99613954","10284951","11395062","12406173","13517284","14628395","15739506","16850617","17961728","18072839","19183950","20295061","21406172","22517283","23628394","24739505","25850616","26961727","27072838","28183949","29295060","30406171","31517282","32628393","33739504","34850615","35961726","36072837","37183948","38295059","39406170","40517281","41628392","42739503","43850614","44961725","45072836","46183947","47295058","48406169","49517280","50628391","51739502","52850613","53961724","54072835","55183946","56295057","57406168","58517279","59628390","60739501","61850612","62961723","63072834","64183945","65295056","66406167","67517278","68628389","69739500","70850611","71961722","72072833","73183944","74295055","75406166","76517277","77628388","78739499","79850610","80961721","81072832","82183943","83295054","84406165","85517276","86628387","87739498","88850609","89961720","90072831","91183942","92295053","93406164","94517275","95628386","96739497","97850608","98961719","99072830","10395826","11406937","12518048","13629159","14740270","15851381","16962492","17073603","18184714","19295825","20406936","21518047","22629158","23740269","24851380","25962491","26073602","27184713","28295824","29406935","30518046","31629157","32740268","33851379","34962490","35073601","36184712","37295823","38406934","39518045","40629156","41740267","42851378","43962489","44073600","45184711","46295822","47406933","48518044","49629155","50740266","51851377","52962488","53073600","54184711","55295822","56406933","57518044","58629155","59740266","60851377","61962488","62073600","63184711","64295822","65406933","66518044","67629155","68740266","69851377","70962488","71073600","72184711","73295822","74406933","75518044","76629155","77740266","78851377","79962488","80073600","81184711","82295822","83406933","84518044","85629155","86740266","87851377","88962488","89073600","90184711","91295822","92406933","93518044","94629155","95740266","96851377","97962488","98073600","99184711"];
 
     const screens = {
@@ -158,7 +157,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { error } = await supabase.from('app_state').update({ data: state }).eq('id', 1);
         if (error) {
             console.error('Errore nel salvataggio dello stato:', error);
-            alert('Si è verificato un errore. I tuoi dati potrebbero non essere stati salvati.');
+            alert('Si è verificato un errore nel database.');
         }
         disableButtons(false);
     };
@@ -170,6 +169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const initializeVotes = () => {
         if (!state.votes) state.votes = {};
+        if (!state.allowed_codes) state.allowed_codes = {};
         state.contestants.forEach(name => {
             if (state.votes[name] === undefined) state.votes[name] = 0;
         });
@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const votes = state.user_votes[currentUserCode];
         let summary = votes 
             ? `<ul>${votes.map(v => `<li>${v}</li>`).join('')}</ul>` 
-            : `<p>Votazione non effettuata per questa serata.</p>`;
+            : `<p>Votazione non effettuata.</p>`;
 
         votingAreaContainer.innerHTML = `
             <div class="vote-summary">
@@ -264,16 +264,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         
         state.user_votes[currentUserCode] = selectedContestants;
-
-        // Cambiamo lo stato del codice anche nella tabella voters per sicurezza
-        await supabase.from('voters').update({ email: 'VOTATO' }).eq('access_code', currentUserCode);
+        state.allowed_codes[currentUserCode] = "VOTATO";
 
         await saveState();
         alert('Grazie per aver votato!');
         renderUI();
     };
 
-    // --- LOGICA DI ACCESSO CON NUOVI CODICI ---
     loginBtn.addEventListener('click', async () => {
         const codeInput = userCodeInput.value.trim();
         if (codeInput === '') return alert("Inserisci un codice valido.");
@@ -287,13 +284,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (codeInput.length !== 8) return alert("Il codice deve essere composto da 8 cifre.");
 
-        disableButtons(true);
-        // Verifichiamo se il codice esiste nel database
-        const { data, error } = await supabase.from('voters').select('access_code, email').eq('access_code', codeInput).maybeSingle();
-        disableButtons(false);
-
-        if (error || !data) {
-            return alert("Codice non valido o non registrato nel sistema.");
+        // Controllo interno nello stato centralizzato
+        if (!state.allowed_codes || !state.allowed_codes[codeInput]) {
+            return alert("Codice errato o non attivo. Clicca su 'Attiva i 500 Codici' nel pannello admin la prima volta.");
+        }
+        
+        if (state.allowed_codes[codeInput] === "VOTATO" && !state.user_votes[codeInput]) {
+             state.allowed_codes[codeInput] = "NON_VOTATO";
         }
 
         currentUserCode = codeInput;
@@ -315,34 +312,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderUI();
     });
     
-    // Funzione ad uso esclusivo dell'admin per inserire istantaneamente i 500 codici nel DB
     setupCodesBtn.addEventListener('click', async () => {
-        if (!confirm("Vuoi caricare o aggiornare i 500 codici pregenerati a 8 cifre nella tabella dei votanti di Supabase?")) return;
-        disableButtons(true);
+        if (!confirm("Vuoi attivare e aggiornare i 500 codici nel sistema?")) return;
         
-        // Prepariamo i record da inserire/aggiornare (usiamo email come campo generico per lo stato del voto)
-        const records = PREGENERATED_CODES.map(code => ({
-            access_code: code,
-            email: 'NON_VOTATO'
-        }));
+        if (!state.allowed_codes) state.allowed_codes = {};
+        PREGENERATED_CODES.forEach(code => {
+            if (!state.allowed_codes[code]) {
+                state.allowed_codes[code] = "NON_VOTATO";
+            }
+        });
 
-        const { error } = await supabase.from('voters').upsert(records, { onConflict: 'access_code' });
-        disableButtons(false);
-
-        if (error) {
-            console.error(error);
-            alert("Errore durante il caricamento dei codici nel DB.");
-        } else {
-            alert("Sincronizzazione completata! I 500 codici pronti sono ora attivi su Supabase.");
-        }
+        await saveState();
+        alert("Sincronizzazione completata con successo! I 500 codici sono pronti.");
     });
 
-    viewVotersBtn.addEventListener('click', async () => {
-        const { data, error } = await supabase.from('voters').select('access_code, email');
-        if(error) return alert("Impossibile caricare i codici.");
-        
-        const usati = data.filter(d => d.email === 'VOTATO').length;
-        alert(`Stato dei Codici:\nTotale inseriti nel DB: ${data.length}\nCodici già Usati: ${usati}\nCodici Rimanenti: ${data.length - usati}`);
+    viewVotersBtn.addEventListener('click', () => {
+        if (!state.allowed_codes) return alert("Codici non ancora attivati.");
+        const codici = Object.keys(state.allowed_codes);
+        const usati = Object.values(state.allowed_codes).filter(v => v === 'VOTATO').length;
+        alert(`Stato dei Codici:\nTotale caricati: ${codici.length}\nCodici usati: ${usati}\nCodici rimanenti: ${codici.length - usati}`);
     });
 
     manageContestantsBtn.addEventListener('click', () => {
@@ -351,18 +339,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     resetVotesBtn.addEventListener('click', async () => {
-        if (confirm("ATTENZIONE! Questa azione azzera TUTTI i voti ricevuti e resetta lo stato d'uso dei codici. Continuare?")) {
+        if (confirm("ATTENZIONE! Vuoi resettare tutti i voti ricevuti e azzerare lo stato dei codici?")) {
             state.votes = {};
             state.user_votes = {};
+            state.allowed_codes = {};
+            PREGENERATED_CODES.forEach(code => {
+                state.allowed_codes[code] = "NON_VOTATO";
+            });
             initializeVotes();
             await saveState();
-            
-            // Ripristiniamo tutti i codici a NON_VOTATO
-            const { data } = await supabase.from('voters').select('access_code');
-            if (data && data.length > 0) {
-                const records = data.map(d => ({ access_code: d.access_code, email: 'NON_VOTATO' }));
-                await supabase.from('voters').upsert(records, { onConflict: 'access_code' });
-            }
             alert("Tutti i dati e le preferenze dei codici sono stati azzerati.");
             renderUI();
         }
