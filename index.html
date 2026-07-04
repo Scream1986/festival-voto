@@ -21,9 +21,8 @@
         .contestant-item input[type="checkbox"] { width: 1.5em; height: 1.5em; margin-right: 1rem; }
         .contestant-item label, .admin-contestant-list-item span { font-weight: 500; flex-grow: 1; }
         label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
-        input[type="text"], input[type="email"] { width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        input[type="text"].code-input { text-align: center; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0.5em; }
-        select { width:100%; padding: 0.5rem; border-radius: 4px; border: 1px solid #ccc; }
+        input[type="text"] { width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        input[type="text"].code-input { text-align: center; font-size: 1.5rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.2em; }
         .btn { display: block; width: 100%; padding: 0.75rem; border: none; border-radius: 4px; font-size: 1rem; font-weight: bold; cursor: pointer; text-align: center; text-decoration: none; margin-top: 1rem; }
         .btn:disabled { background-color: #ccc; cursor: not-allowed; }
         .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; margin: 0; width: auto; }
@@ -54,34 +53,28 @@
 
             <div id="login-screen" class="screen">
                 <h2>Benvenuto al Contest</h2>
-                <p style="text-align: center; color: #666;">Inserisci la tua email per ricevere il codice di voto, o inserisci il codice admin.</p>
+                <p style="text-align: center; color: #666;">Inserisci il codice di voto di 8 cifre ricevuto all'ingresso o il codice admin.</p>
                 <div class="form-group">
-                    <label for="user-email">La tua Email / Codice Admin</label>
-                    <input type="text" id="user-email" placeholder="nome@email.com" autocomplete="email">
+                    <label for="user-code">Codice Personale</label>
+                    <input type="text" id="user-code" class="code-input" placeholder="00000000" autocomplete="off" maxlength="9">
                 </div>
-                <div class="form-group" id="code-entry-group" style="display: none;">
-                    <label for="user-code">Il tuo Codice di Voto</label>
-                    <input type="text" id="user-code" class="code-input" placeholder="_ _ _ _ _ _" autocomplete="off" maxlength="6">
-                </div>
-                <button id="login-btn" class="btn btn-primary">Procedi</button>
+                <button id="login-btn" class="btn btn-primary">Accedi</button>
             </div>
 
             <div id="main-screen" class="screen">
                 <div id="admin-view" style="display: none;">
                     <h2>Pannello Amministratore</h2>
                     <div class="admin-controls">
-                        <h3>Gestione Serate</h3>
-                        <label for="active-event-select">Seleziona la serata da gestire:</label>
-                        <select id="active-event-select"><option value="serata_1">Serata 1</option><option value="serata_2">Serata 2</option></select>
+                        <h3>Stato della Serata</h3>
                         <button id="toggle-voting-btn" class="btn btn-secondary">Apri Votazioni</button>
                     </div>
                     <div class="admin-controls">
                         <h3>Azioni e Risultati</h3>
                         <button id="manage-contestants-btn" class="btn btn-secondary">Gestisci Partecipanti</button>
-                        <button id="view-voters-btn" class="btn btn-secondary">Visualizza Votanti</button>
-                        <button id="view-event-ranking-btn" class="btn btn-secondary">Classifica Serata</button>
-                        <button id="general-ranking-btn" class="btn btn-primary">Classifica Generale</button>
-                        <button id="reset-votes-btn" class="btn btn-danger">Reset Voti e Utenti</button>
+                        <button id="view-voters-btn" class="btn btn-secondary">Visualizza Stato Codici</button>
+                        <button id="view-event-ranking-btn" class="btn btn-primary">Classifica</button>
+                        <button id="setup-codes-btn" class="btn btn-admin">Sincronizza i 500 Codici nel DB</button>
+                        <button id="reset-votes-btn" class="btn btn-danger">Reset Completo Voti e Codici</button>
                     </div>
                     <button id="logout-btn-admin" class="btn btn-admin" style="margin-top: 2rem;">Esci</button>
                 </div>
@@ -89,8 +82,7 @@
                 <div id="public-view" style="display: none;">
                     <h2 id="public-welcome">Area Votazione</h2>
                     <div id="voting-status"></div>
-                    <div id="voting-area-container">
-                         </div>
+                    <div id="voting-area-container"></div>
                     <button id="logout-btn-public" class="btn btn-secondary">Esci</button>
                 </div>
             </div>
@@ -109,17 +101,16 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
-    // --- CONFIGURAZIONE SUPABASE ---
     const SUPABASE_URL = 'https://igngvrktzevpghxwxpqw.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlnbmd2cmt0emV2cGdoeHd4cHF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyNDE1MzIsImV4cCI6MjA3MTgxNzUzMn0.VjVt37MQx1mGRN4vOkyOlXPFH5LKSajKNXq8HzbHD6I';
     const supabase = self.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // --- VARIABILI GLOBALI ---
     let state = {};
-    let currentUser = null;
-    let loginStage = 'email';
+    let currentUserCode = null;
 
-    // --- ELEMENTI DEL DOM ---
+    // Array completo dei 500 codici generati appositamente per te
+    const PREGENERATED_CODES = ["10482591","11394627","12584039","13840294","14692740","15920438","16402935","17294810","18493025","19385026","20491835","21394850","22619403","23849102","24719402","25930284","26491048","27395820","28401947","29581043","30491825","31495028","32619483","33948102","34710492","35930184","36492014","37395104","38402957","39582041","40492815","41496023","42620481","43949105","44711496","45931187","46493018","47396105","48403951","49583042","50493812","51497024","52621482","53950106","54712497","55932188","56494019","57397106","58404952","59584043","60494813","61498025","62622483","63951107","64713498","65933189","66495011","67398107","68405953","69585044","70495814","71499026","72623484","73952108","74714499","75934181","76496012","77399108","78406954","79586045","80496815","81400027","82624485","83953109","84715491","85935182","86497013","87300109","88407955","89587046","90497816","91401028","92625486","93954101","94716492","95936183","96498014","97301101","98408956","99588047","10593847","11482950","12693041","13958204","14703952","15814029","16593841","17304925","18592047","19403951","20594812","21483951","22704152","23959315","24814063","25925130","26604952","27415036","28503069","29693154","30605923","31594062","32715263","33060426","34925174","35036241","36716063","37526147","38614170","39704265","40716034","41605173","42826374","43171537","44036285","45147352","46827174","47637258","48725281","49815376","50827145","51716284","52937485","53282648","54147396","55258463","56938285","57748369","58836392","59926487","60938256","61827395","62048596","63393759","64258507","65369574","66049396","67859480","68947403","69037598","70049367","71938506","72159607","73404860","74369618","75480685","76160407","77960591","78058514","79148609","80160478","81049617","82260718","83515971","84470729","85591796","86271518","87071602","88169625","89259710","90271589","91160728","92371829","93626082","94581830","95602807","96382629","97182713","98270736","99360821","10839462","11948261","12049385","13284059","14395820","15402938","16592041","17603952","18714063","19825174","20936285","21047396","22158407","23269518","24380629","25491740","26502851","27613962","28725073","29836184","30947295","31058406","32169517","33280628","34391739","35502850","36613961","37725072","38836183","39947294","40058405","41169516","42280627","43391738","44502849","45613960","46725071","47836182","48947293","49058404","50169515","51280626","52391737","53502848","54613959","55725070","56836181","57947292","58058403","59169514","60280625","61391736","62502847","63613958","64725069","65836180","66947291","67058402","68169513","69280624","70391735","71502846","72613957","73725068","74836179","75947290","76058401","77169512","78280623","79391734","80502845","81613956","82725067","83836178","84947289","85058400","86169511","87280622","88391733","89502844","90613955","91725066","92836177","93947288","94058399","95169510","96280621","97391732","98502843","99613954","10284951","11395062","12406173","13517284","14628395","15739506","16850617","17961728","18072839","19183950","20295061","21406172","22517283","23628394","24739505","25850616","26961727","27072838","28183949","29295060","30406171","31517282","32628393","33739504","34850615","35961726","36072837","37183948","38295059","39406170","40517281","41628392","42739503","43850614","44961725","45072836","46183947","47295058","48406169","49517280","50628391","51739502","52850613","53961724","54072835","55183946","56295057","57406168","58517279","59628390","60739501","61850612","62961723","63072834","64183945","65295056","66406167","67517278","68628389","69739500","70850611","71961722","72072833","73183944","74295055","75406166","76517277","77628388","78739499","79850610","80961721","81072832","82183943","83295054","84406165","85517276","86628387","87739498","88850609","89961720","90072831","91183942","92295053","93406164","94517275","95628386","96739497","97850608","98961719","99072830","10395826","11406937","12518048","13629159","14740270","15851381","16962492","17073603","18184714","19295825","20406936","21518047","22629158","23740269","24851380","25962491","26073602","27184713","28295824","29406935","30518046","31629157","32740268","33851379","34962490","35073601","36184712","37295823","38406934","39518045","40629156","41740267","42851378","43962489","44073600","45184711","46295822","47406933","48518044","49629155","50740266","51851377","52962488","53073600","54184711","55295822","56406933","57518044","58629155","59740266","60851377","61962488","62073600","63184711","64295822","65406933","66518044","67629155","68740266","69851377","70962488","71073600","72184711","73295822","74406933","75518044","76629155","77740266","78851377","79962488","80073600","81184711","82295822","83406933","84518044","85629155","86740266","87851377","88962488","89073600","90184711","91295822","92406933","93518044","94629155","95740266","96851377","97962488","98073600","99184711"];
+
     const screens = {
         'loading': document.getElementById('loading-screen'),
         'login': document.getElementById('login-screen'),
@@ -129,23 +120,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const adminView = document.getElementById('admin-view');
     const publicView = document.getElementById('public-view');
     const loginBtn = document.getElementById('login-btn');
-    const userEmailInput = document.getElementById('user-email');
     const userCodeInput = document.getElementById('user-code');
-    const codeEntryGroup = document.getElementById('code-entry-group');
     const logoutButtons = document.querySelectorAll('#logout-btn-admin, #logout-btn-public');
     const votingAreaContainer = document.getElementById('voting-area-container');
     const adminContestantListContainer = document.getElementById('admin-contestant-list-container');
     const toggleVotingBtn = document.getElementById('toggle-voting-btn');
-    const generalRankingBtn = document.getElementById('general-ranking-btn');
     const eventRankingBtn = document.getElementById('view-event-ranking-btn');
     const manageContestantsBtn = document.getElementById('manage-contestants-btn');
-    const activeEventSelect = document.getElementById('active-event-select');
     const addContestantBtn = document.getElementById('add-contestant-btn');
     const backToAdminBtn = document.getElementById('back-to-admin-btn');
     const resetVotesBtn = document.getElementById('reset-votes-btn');
     const viewVotersBtn = document.getElementById('view-voters-btn');
+    const setupCodesBtn = document.getElementById('setup-codes-btn');
     
-    // --- FUNZIONI DI BASE ---
     const navigateTo = (screenId) => {
         Object.values(screens).forEach(s => s.classList.remove('active'));
         screens[screenId]?.classList.add('active');
@@ -155,7 +142,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.querySelectorAll('button').forEach(b => b.disabled = disabled);
     };
 
-    // --- FUNZIONI SUPABASE ---
     const fetchState = async () => {
         const { data, error } = await supabase.from('app_state').select('data').eq('id', 1).single();
         if (error) {
@@ -177,32 +163,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         disableButtons(false);
     };
 
-    // --- LOGICA APPLICAZIONE ---
     const initializeApp = async () => {
         await fetchState();
         navigateTo('login');
     };
 
     const initializeVotes = () => {
-        if (!state.votes_serata_1) state.votes_serata_1 = {};
-        if (!state.votes_serata_2) state.votes_serata_2 = {};
+        if (!state.votes) state.votes = {};
         state.contestants.forEach(name => {
-            if (state.votes_serata_1[name] === undefined) state.votes_serata_1[name] = 0;
-            if (state.votes_serata_2[name] === undefined) state.votes_serata_2[name] = 0;
+            if (state.votes[name] === undefined) state.votes[name] = 0;
         });
         if (!state.user_votes) state.user_votes = {};
     };
 
     const renderUI = () => {
-        if (!currentUser) return;
-        if (currentUser.toUpperCase() === 'ROB025490') {
+        if (!currentUserCode) return;
+        if (currentUserCode.toUpperCase() === 'ROB025490') {
             adminView.style.display = 'block';
             publicView.style.display = 'none';
-            activeEventSelect.value = state.activeEvent;
         } else {
             adminView.style.display = 'none';
             publicView.style.display = 'block';
-            document.getElementById('public-welcome').textContent = `Ciao ${currentUser}!`;
+            document.getElementById('public-welcome').textContent = `Codice Votante: ${currentUserCode}`;
         }
         updateVotingStatus();
         renderAdminContestantList();
@@ -210,18 +192,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const updateVotingStatus = () => {
         const statusDiv = document.getElementById('voting-status');
-        const activeEventName = state.activeEvent.replace('_', ' ');
-        // Admin
-        toggleVotingBtn.textContent = state.votingOpen ? `Chiudi Votazioni per ${activeEventName}` : `Apri Votazioni per ${activeEventName}`;
+        toggleVotingBtn.textContent = state.votingOpen ? `Chiudi Votazioni` : `Apri Votazioni`;
         toggleVotingBtn.className = `btn ${state.votingOpen ? 'btn-admin' : 'btn-secondary'}`;
         
-        // Pubblico
-        const userHasVotedForCurrentEvent = state.user_votes[currentUser]?.[state.activeEvent];
+        const userHasVoted = state.user_votes[currentUserCode];
         
         if (state.votingOpen) {
-            statusDiv.textContent = `VOTAZIONI APERTE - ${activeEventName}`;
+            statusDiv.textContent = `VOTAZIONI APERTE`;
             statusDiv.style.color = 'green';
-            if (userHasVotedForCurrentEvent) {
+            if (userHasVoted) {
                 renderVoteSummary();
             } else {
                 renderPublicVotingArea();
@@ -236,38 +215,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     const renderPublicVotingArea = () => {
         let html = `
             <div id="public-voting-area">
-                <p>Puoi esprimere fino a <strong>3 preferenze</strong> per la serata in corso.</p>
+                <p>Puoi esprimere fino a <strong>3 preferenze</strong>.</p>
                 <div id="contestants-container">
                     <ul class="contestant-list">${state.contestants.map((name, index) => 
                         `<li class="contestant-item"><input type="checkbox" id="c-${index}" value="${name}"><label for="c-${index}">${name}</label></li>`
                     ).join('')}</ul>
                 </div>
-                <button id="vote-btn" class="btn btn-primary">Vota le tue 3 preferenze</button>
+                <button id="vote-btn" class="btn btn-primary">Invia le preferenze</button>
             </div>`;
         votingAreaContainer.innerHTML = html;
-        // Aggiungi event listener al nuovo bottone
         document.getElementById('vote-btn').addEventListener('click', handleVote);
     };
 
     const renderVoteSummary = () => {
-        const votesS1 = state.user_votes[currentUser]?.serata_1;
-        const votesS2 = state.user_votes[currentUser]?.serata_2;
-
-        let summaryS1 = votesS1 
-            ? `<ul>${votesS1.map(v => `<li>${v}</li>`).join('')}</ul>` 
-            : `<p>Ti aspettiamo per la votazione della prima serata!</p>`;
-
-        let summaryS2 = votesS2 
-            ? `<ul>${votesS2.map(v => `<li>${v}</li>`).join('')}</ul>` 
-            : `<p>Ti aspettiamo per la votazione della seconda serata!</p>`;
+        const votes = state.user_votes[currentUserCode];
+        let summary = votes 
+            ? `<ul>${votes.map(v => `<li>${v}</li>`).join('')}</ul>` 
+            : `<p>Votazione non effettuata per questa serata.</p>`;
 
         votingAreaContainer.innerHTML = `
             <div class="vote-summary">
-                <h4>Le tue preferenze</h4>
-                <strong>Prima Serata:</strong>
-                ${summaryS1}
-                <strong>Seconda Serata:</strong>
-                ${summaryS2}
+                <h4>Le tue preferenze inviate</h4>
+                ${summary}
             </div>`;
     };
     
@@ -286,76 +255,55 @@ document.addEventListener('DOMContentLoaded', async () => {
     const handleVote = async () => {
         const selected = document.querySelectorAll('#contestants-container input:checked');
         if (selected.length === 0 || selected.length > 3) return alert('Devi selezionare da 1 a 3 preferenze.');
-        if (!confirm('Confermi il tuo voto? Non potrai più modificarlo.')) return;
+        if (!confirm('Confermi il tuo voto? L\'azione è definitiva.')) return;
         
         const selectedContestants = Array.from(selected).map(cb => cb.value);
 
         selectedContestants.forEach(contestant => { 
-            state[`votes_${state.activeEvent}`][contestant]++; 
+            state.votes[contestant]++; 
         });
         
-        if(!state.user_votes[currentUser]) state.user_votes[currentUser] = {};
-        state.user_votes[currentUser][state.activeEvent] = selectedContestants;
+        state.user_votes[currentUserCode] = selectedContestants;
+
+        // Cambiamo lo stato del codice anche nella tabella voters per sicurezza
+        await supabase.from('voters').update({ email: 'VOTATO' }).eq('access_code', currentUserCode);
 
         await saveState();
         alert('Grazie per aver votato!');
         renderUI();
     };
 
-    // --- GESTIONE EVENTI ---
+    // --- LOGICA DI ACCESSO CON NUOVI CODICI ---
     loginBtn.addEventListener('click', async () => {
-        if (loginStage === 'email') {
-            const input = userEmailInput.value.trim();
-            if (input.toUpperCase() === 'ROB025490') {
-                currentUser = 'ROB025490';
-                navigateTo('main');
-                renderUI();
-                return;
-            }
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(input)) return alert('Inserisci un indirizzo email valido.');
-            
-            const email = input.toLowerCase();
-            let { data: existingVoter } = await supabase.from('voters').select('access_code').eq('email', email).single();
-            
-            let code;
-            if (existingVoter) {
-                code = existingVoter.access_code;
-                alert(`Hai già un codice associato a questa email.\n\nIl tuo codice di voto è: ${code}\n\nInseriscilo qui sotto per accedere.`);
-            } else {
-                code = Math.floor(100000 + Math.random() * 900000).toString();
-                await supabase.from('voters').upsert({ email: email, access_code: code }, { onConflict: 'email' });
-                alert(`Questo è il tuo codice di voto personale:\n\n${code}\n\nMemorizzalo o fai uno screenshot, poi inseriscilo qui sotto per accedere.`);
-            }
+        const codeInput = userCodeInput.value.trim();
+        if (codeInput === '') return alert("Inserisci un codice valido.");
 
-            loginStage = 'code';
-            userEmailInput.disabled = true;
-            codeEntryGroup.style.display = 'block';
-            userCodeInput.focus();
-            loginBtn.textContent = "Accedi";
-
-        } else if (loginStage === 'code') {
-            const email = userEmailInput.value.trim().toLowerCase();
-            const code = userCodeInput.value.trim();
-            if (code.length !== 6) return alert("Il codice deve essere di 6 cifre.");
-
-            const { data, error } = await supabase.from('voters').select('access_code').eq('email', email).single();
-            if (error || !data || data.access_code !== code) return alert("Codice non corretto. Riprova.");
-            
-            currentUser = email;
+        if (codeInput.toUpperCase() === 'ROB025490') {
+            currentUserCode = 'ROB025490';
             navigateTo('main');
             renderUI();
+            return;
         }
+
+        if (codeInput.length !== 8) return alert("Il codice deve essere composto da 8 cifre.");
+
+        disableButtons(true);
+        // Verifichiamo se il codice esiste nel database
+        const { data, error } = await supabase.from('voters').select('access_code, email').eq('access_code', codeInput).maybeSingle();
+        disableButtons(false);
+
+        if (error || !data) {
+            return alert("Codice non valido o non registrato nel sistema.");
+        }
+
+        currentUserCode = codeInput;
+        navigateTo('main');
+        renderUI();
     });
 
     const logout = () => {
-        currentUser = null;
-        userEmailInput.value = '';
+        currentUserCode = null;
         userCodeInput.value = '';
-        userEmailInput.disabled = false;
-        codeEntryGroup.style.display = 'none';
-        loginBtn.textContent = 'Procedi';
-        loginStage = 'email';
         navigateTo('login');
     };
     logoutButtons.forEach(btn => btn.addEventListener('click', logout));
@@ -363,29 +311,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     toggleVotingBtn.addEventListener('click', async () => {
         state.votingOpen = !state.votingOpen;
         await saveState();
-        alert(`Le votazioni per la ${state.activeEvent.replace('_', ' ')} sono ora ${state.votingOpen ? 'APERTE' : 'CHIUSE'}.`);
-        renderUI();
-    });
-
-    activeEventSelect.addEventListener('change', async (e) => {
-        if (state.votingOpen) {
-            alert("Chiudi prima le votazioni della serata corrente.");
-            e.target.value = state.activeEvent;
-            return;
-        }
-        state.activeEvent = e.target.value;
-        await saveState();
+        alert(`Le votazioni sono ora ${state.votingOpen ? 'APERTE' : 'CHIUSE'}.`);
         renderUI();
     });
     
-    viewVotersBtn.addEventListener('click', async () => {
-        const { data, error } = await supabase.from('voters').select('email, access_code');
-        if(error) return alert("Impossibile caricare la lista dei votanti.");
-        if(data.length === 0) return alert("Nessun votante si è ancora registrato.");
+    // Funzione ad uso esclusivo dell'admin per inserire istantaneamente i 500 codici nel DB
+    setupCodesBtn.addEventListener('click', async () => {
+        if (!confirm("Vuoi caricare o aggiornare i 500 codici pregenerati a 8 cifre nella tabella dei votanti di Supabase?")) return;
+        disableButtons(true);
+        
+        // Prepariamo i record da inserire/aggiornare (usiamo email come campo generico per lo stato del voto)
+        const records = PREGENERATED_CODES.map(code => ({
+            access_code: code,
+            email: 'NON_VOTATO'
+        }));
 
-        let message = '--- LISTA VOTANTI REGISTRATI ---\n\n';
-        data.forEach(voter => { message += `Email: ${voter.email} - Codice: ${voter.access_code}\n`; });
-        alert(message);
+        const { error } = await supabase.from('voters').upsert(records, { onConflict: 'access_code' });
+        disableButtons(false);
+
+        if (error) {
+            console.error(error);
+            alert("Errore durante il caricamento dei codici nel DB.");
+        } else {
+            alert("Sincronizzazione completata! I 500 codici pronti sono ora attivi su Supabase.");
+        }
+    });
+
+    viewVotersBtn.addEventListener('click', async () => {
+        const { data, error } = await supabase.from('voters').select('access_code, email');
+        if(error) return alert("Impossibile caricare i codici.");
+        
+        const usati = data.filter(d => d.email === 'VOTATO').length;
+        alert(`Stato dei Codici:\nTotale inseriti nel DB: ${data.length}\nCodici già Usati: ${usati}\nCodici Rimanenti: ${data.length - usati}`);
     });
 
     manageContestantsBtn.addEventListener('click', () => {
@@ -394,40 +351,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     resetVotesBtn.addEventListener('click', async () => {
-        if (confirm("ATTENZIONE! Sei sicuro di voler azzerare TUTTI i voti e resettare TUTTI gli utenti votanti? L'azione è irreversibile.")) {
-            state.votes_serata_1 = {};
-            state.votes_serata_2 = {};
+        if (confirm("ATTENZIONE! Questa azione azzera TUTTI i voti ricevuti e resetta lo stato d'uso dei codici. Continuare?")) {
+            state.votes = {};
             state.user_votes = {};
             initializeVotes();
             await saveState();
-            await supabase.from('voters').delete().neq('email', 'placeholder');
-            alert("Voti e utenti sono stati azzerati con successo.");
+            
+            // Ripristiniamo tutti i codici a NON_VOTATO
+            const { data } = await supabase.from('voters').select('access_code');
+            if (data && data.length > 0) {
+                const records = data.map(d => ({ access_code: d.access_code, email: 'NON_VOTATO' }));
+                await supabase.from('voters').upsert(records, { onConflict: 'access_code' });
+            }
+            alert("Tutti i dati e le preferenze dei codici sono stati azzerati.");
+            renderUI();
         }
     });
     
-    const displayRanking = (voteData, title) => {
-        const sorted = Object.entries(voteData).sort((a, b) => b[1] - a[1]);
-        if (sorted.length === 0) {
-            alert(`Nessun voto registrato per ${title}.`);
-            return;
-        }
-        const message = sorted.map((entry, index) => `${index + 1}. ${entry[0]}: ${entry[1]} voti`).join('\n');
-        alert(`--- ${title.toUpperCase()} ---\n\n` + message);
-    };
-    
-    generalRankingBtn.addEventListener('click', () => {
-        const totalVotes = {};
-        state.contestants.forEach(name => {
-            totalVotes[name] = (state.votes_serata_1[name] || 0) + (state.votes_serata_2[name] || 0);
-        });
-        displayRanking(totalVotes, 'Classifica Generale');
-    });
-
     eventRankingBtn.addEventListener('click', () => {
-        const eventKey = `votes_${state.activeEvent}`;
-        const eventVotes = state[eventKey];
-        const eventName = state.activeEvent.replace('_', ' ');
-        displayRanking(eventVotes, `Classifica ${eventName}`);
+        const sorted = Object.entries(state.votes).sort((a, b) => b[1] - a[1]);
+        if (sorted.length === 0) return alert("Nessun voto registrato.");
+        const message = sorted.map((entry, index) => `${index + 1}. ${entry[0]}: ${entry[1]} voti`).join('\n');
+        alert("--- CLASSIFICA CONTEST ---\n\n" + message);
     });
 
     backToAdminBtn.addEventListener('click', () => navigateTo('main'));
@@ -449,13 +394,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             const nameToRemove = e.target.dataset.name;
             if (confirm(`Sei sicuro di voler rimuovere ${nameToRemove}?`)) {
                 state.contestants = state.contestants.filter(name => name !== nameToRemove);
+                if (state.votes[nameToRemove] !== undefined) delete state.votes[nameToRemove];
                 await saveState();
                 renderAdminContestantList();
             }
         }
     });
 
-    // --- AVVIO ---
     initializeApp();
 });
 </script>
