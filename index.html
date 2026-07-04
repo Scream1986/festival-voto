@@ -92,7 +92,7 @@
                 <div id="admin-contestant-list-container"></div>
                 <div class="add-contestant-form">
                     <input type="text" id="new-contestant-name" placeholder="Nome nuovo partecipante" style="flex-grow: 1;">
-                    <button id="add-contestant-btn" class="btn btn-primary btn-sm">Aungi</button>
+                    <button id="add-contestant-btn" class="btn btn-primary btn-sm">Aggiungi</button>
                 </div>
                 <button id="back-to-admin-btn" class="btn btn-secondary" style="margin-top: 2rem;">Torna al Pannello</button>
             </div>
@@ -101,8 +101,9 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', async () => {
-    const SUPABASE_URL = 'https://igngvrktzevpghxwxpqw.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlnbmd2cmt0emV2cGdoeHd4cHF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyNDE1MzIsImV4cCI6MjA3MTgxNzUzMn0.VjVt37MQx1mGRN4vOkyOlXPFH5LKSajKNXq8HzbHD6I';
+    // --- DATI AGGIORNATI CON LE TUE NUOVE CREDENZIALI ---
+    const SUPABASE_URL = 'https://sxaohuaykrtzgxjxxjjz.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4YW9odWF5a3J0emd4anh4amp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNzQwNDQsImV4cCI6MjA5ODc1MDA0NH0.bAqjF-ZLOCxvXpTyAo-VGYGY4nmqU1asITsszUAxk5Y';
     const supabase = self.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let state = {};
@@ -145,7 +146,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { data, error } = await supabase.from('app_state').select('data').eq('id', 1).single();
         if (error) {
             console.error('Errore nel caricamento dello stato:', error);
-            alert('Impossibile caricare i dati. Riprova più tardi.');
+            alert('Impossibile caricare i dati. Assicurati di aver lanciato lo script SQL di inizializzazione nel tuo NUOVO Supabase.');
             return;
         }
         state = data.data;
@@ -284,7 +285,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (codeInput.length !== 8) return alert("Il codice deve essere composto da 8 cifre.");
 
-        // Controllo interno nello stato centralizzato
         if (!state.allowed_codes || !state.allowed_codes[codeInput]) {
             return alert("Codice errato o non attivo. Clicca su 'Attiva i 500 Codici' nel pannello admin la prima volta.");
         }
